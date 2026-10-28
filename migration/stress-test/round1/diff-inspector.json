@@ -1,0 +1,292 @@
+{
+ "rows": [
+  {
+   "unit": "webfetch/cloud/service.py — HTTP client",
+   "a_quote": "import httpx\nfrom websearch.services.network import client as network  # ... cfg.http_client = network.new_client(os.environ.get(\"HTTPS_PROXY\", \"\"))",
+   "b_quote": "import requests\n\n@dataclass\nclass Config:\n    http_client: requests.Session = field(default_factory=requests.Session)",
+   "rule_or_gap": "RULEBOOK §1 HTTP-client row (httpx, trust_env=False, proxy read by hand from HTTPS_PROXY; requests explicitly banned)",
+   "verdict": "rulebook right",
+   "evidence": "network/client.go:18-25 puts ONE fixed URL (main's HTTPS_PROXY value) on Transport.Proxy via http.ProxyURL — every scheme, no env consultation. requests.Session defaults trust_env=True: it honors HTTP_PROXY/ALL_PROXY/NO_PROXY and would NOT route http:// targets through HTTPS_PROXY — breaking the judge's all-scheme interception model the §1 'Why' column documents, independent of the dep ban. A matches §1 and C-5's constructor spec."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — shared DTOs and interface",
+   "a_quote": "from websearch.services.webfetch import service\nfrom websearch.services.webfetch.cloud import output, parameters\n\ndef fetch(self, target_url: str, opts: service.FetchOpts) -> service.FetchResult:",
+   "b_quote": "@dataclass\nclass FetchOpts: ...\nclass WebFetchService(Protocol):\n    def fetch(self, target_url: str, opts: FetchOpts | None = None) -> FetchResult: ...",
+   "rule_or_gap": "§4 shared-types row ('Shared types live in the module that owns them in Go... no copies') + §2 interfaces row ('typing.Protocol with the same method sets'); inventory row 5 (CTX) pins the exact signature fetch(self, target_url: str, opts: FetchOpts)",
+   "verdict": "rulebook right",
+   "evidence": "Go's service.go imports the types from package webfetch (service.go:13,29); B re-defines FetchOpts/Content/FetchResult/the Protocol locally AND adds an opts=None default Go's interface does not have — §2 calls inventing a second mapping for a listed construct a violation. Self-containment also hid postprocessor's constant from B (see postprocessor rows)."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — URL join",
+   "a_quote": "parts = urlsplit(base_url)\nsegments = [parts.path, *elements]\n...\nreturn urlunsplit((parts.scheme, parts.netloc, joined, parts.query, parts.fragment))",
+   "b_quote": "def _join_url(base: str, *segments: str) -> str:\n    return \"/\".join((base.rstrip(\"/\"), *segments))",
+   "rule_or_gap": "inventory row 7 (URL-JOIN) — pins the urlsplit/posixpath JoinPath mirror plus a Go-verified probe matrix; 'NEVER urllib.parse.urljoin (RFC last-segment replacement is a verified divergence)'",
+   "verdict": "rulebook right",
+   "evidence": "Go apiURL.JoinPath(\"web\",\"fetch\") rewrites only the path and PRESERVES query/fragment (service.go:48-52). B's rstrip/join mangles a query-ful base: base 'http://host/api?v=1#f' → 'http://host/api?v=1#f/web/fetch' vs Go's 'http://host/api/web/fetch?v=1#f' (row 7 matrix). Judge-supplied bases are clean, so latent — but the row mandates the algorithm, and A implements it verbatim."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — request body construction",
+   "a_quote": "body = json.dumps(\n    {\"model\": params.model, \"url\": params.url, \"format\": params.format},\n    separators=(\",\", \":\"),\n).encode(\"utf-8\")",
+   "b_quote": "response = self._config.http_client.post(\n    _join_url(...), json=asdict(parameters), headers=headers,\n)",
+   "rule_or_gap": "§2 struct-JSON-tags row — 'build output dicts explicitly at the wire boundary — no dataclass asdict, no pydantic'; inventory row 62 (compact separators)",
+   "verdict": "rulebook right",
+   "evidence": "Wire keys coincide here (model/url/format always present; fetch's omitempty is dead per row 62 since Fetch defaults format to 'markdown'), so no judge-visible difference — but §2 bans asdict by name because key names (FF-1) must be impossible to drift, and requests' json= dumps with default spaced separators vs Go's compact Marshal (unobservable only because the judge parses proxy bodies)."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — non-2xx error body decoding",
+   "a_quote": "rbody = resp.content\nraise CloudWebFetchError(\n    f\"web fetch failed: {resp.status_code} {resp.reason_phrase}:\"\n    f\" {rbody.decode('utf-8', errors='replace')}\")",
+   "b_quote": "raise WebFetchError(\n    f\"web fetch failed: {response.status_code} {response.reason}: {response.text}\"\n)",
+   "rule_or_gap": "inventory rows 16 (ERR-STRING) / 17 (BYTES): body decoded utf-8 errors='replace' per the §1 charset rule; class name CloudWebFetchError(Exception) pinned by row 16",
+   "verdict": "rulebook right",
+   "evidence": "Go string(rbody) keeps raw bytes (service.go:108-109); rows 16/17 pin the utf-8/replace approximation AND the class name/base. B's requests .text decodes via its own charset fallback (ISO-8859-1 for missing charset), diverging on non-UTF-8 error bodies; its class is WebFetchError(RuntimeError) against a row that names the class. Latent for ASCII judge error bodies."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — success output decode",
+   "a_quote": "return output.from_response(resp.json())  # row 5: from_response(data: dict) applying Go zero-value defaults",
+   "b_quote": "content = response.get(\"content\") or {}\nreturn FetchResult(\n    url=target_url,\n    title=response.get(\"title\", \"\"),\n    content=Content(text=content.get(\"text\", \"\"), length=content.get(\"length\", 0)),",
+   "rule_or_gap": "inventory row 5 (WIRE-DECODE): 'MISSING key and EXPLICIT null both yield the zero value'; output.py owns the parse",
+   "verdict": "rulebook right",
+   "evidence": "Go decodes null into a string/struct as an error-free no-op → zero value (output.go:3-9). B's .get(k, default) returns the default only for a MISSING key: an explicit null title/text/length surfaces as None in FetchResult where Go yields ''/0. Latent (s03/s16 fixtures send real values) but the row decides the mechanism, and A delegates to the row's named owner."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — New()/DefaultClient fallback",
+   "a_quote": "def new(cfg: Config) -> service.WebFetchService:\n    if cfg.http_client is None:\n        cfg.http_client = network.new_client(os.environ.get(\"HTTPS_PROXY\", \"\"))\n    return CloudWebFetchService(cfg)",
+   "b_quote": "(absent — Config.http_client defaults to a constructed requests.Session; no new())",
+   "rule_or_gap": "inventory rows 10/11 (New NIL-ZERO / NIL-DEFAULT) + conflicts C-5: fallback is network.new_client(HTTPS_PROXY), the env-proxy mirror of http.DefaultClient",
+   "verdict": "rulebook right",
+   "evidence": "Go's zero Config has HTTPClient nil and New() swaps http.DefaultClient (service.go:122-127). B never mirrors New and makes the client always-constructed in Config — silently deleting Go's nil-zero semantics (and with it the reason the fallback exists). Production-dead path either way, but the rows (C-5) spell the constructor A uses."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — reason-less status line",
+   "a_quote": "# TODO(port): a reason-less status line yields Go \"500\" but Python \"500 \" (trailing space)",
+   "b_quote": "f\"web fetch failed: {response.status_code} {response.reason}: {response.text}\"  # reason None → \"500 None\"",
+   "rule_or_gap": "Gap — no rulebook or inventory text says how to render a status line with no reason phrase (§2 pinned-string row assumes Go's resp.Status 'code SP reason' always has one); A flagged it as TODO(port)",
+   "verdict": "both wrong",
+   "evidence": "Go's resp.Status for 'HTTP/1.1 500\\r' is '500' with no trailing space; A renders '500 ' (httpx reason_phrase=''), B renders '500 None' (requests reason=None). Both diverge from Go on that input; unreachable under the judge (its proxy always sends a reason), so it is a queued wording fix, not a judge failure. Websearch twin has the same shape."
+  },
+  {
+   "unit": "webfetch/cloud/service.py — guard style",
+   "a_quote": "if target_url == \"\":\n    raise ValueError(\"url must not be empty\")",
+   "b_quote": "if not target_url:\n    raise ValueError(\"url must not be empty\")",
+   "rule_or_gap": "No rule governs zero-guard style; under mypy-strict str typing, == \"\" and not are equivalent",
+   "verdict": "both defensible",
+   "evidence": "Go writes targetURL == \"\" (service.go:30). A transcribes the comparison; B uses truthiness. Identical for str values, message byte-exact in both — pure style noise, no indictment."
+  },
+  {
+   "unit": "websearch/cloud/service.py — HTTP client",
+   "a_quote": "import httpx  # ... network.new_client(os.environ.get(\"HTTPS_PROXY\", \"\"))",
+   "b_quote": "import requests\n\n@dataclass\nclass Config:\n    http_client: requests.Session = field(default_factory=requests.Session)",
+   "rule_or_gap": "RULEBOOK §1 HTTP-client row (requests banned; trust_env=False; hand-read HTTPS_PROXY)",
+   "verdict": "rulebook right",
+   "evidence": "Same grounds as the webfetch twin: Go's client proxies all schemes through the single HTTPS_PROXY-sourced URL (client.go:18-25); requests' env-honoring session breaks the judge's interception model and the §1 dep ban."
+  },
+  {
+   "unit": "websearch/cloud/service.py — shared DTOs and interface",
+   "a_quote": "from websearch.services.websearch import service\nfrom websearch.services.websearch.cloud import output, parameters",
+   "b_quote": "@dataclass\nclass SearchInput: ...\nclass WebSearchService(Protocol):\n    def search(self, search_input: SearchInput) -> SearchOutput: ...",
+   "rule_or_gap": "§4 shared-types row (no copies; owner-module imports) + §2 interfaces row; inventory row 63 (CTX) spells def search(self, input: Input) -> Output",
+   "verdict": "rulebook right",
+   "evidence": "Go's cloud service imports Input/Output/SearchResult from package websearch (service.go:11,27). B re-defines them (renamed SearchInput/SearchOutput/SearchResult) and renames the interface parameter. §4: 'no central types module, no copies' — cross-file references import the sibling module and qualify."
+  },
+  {
+   "unit": "websearch/cloud/service.py — interface parameter name",
+   "a_quote": "def search(self, input: service.Input) -> service.Output:  # noqa: A002  — kept verbatim, mirrors Go",
+   "b_quote": "def search(self, search_input: SearchInput) -> SearchOutput:",
+   "rule_or_gap": "Gap — no rulebook or inventory text decides Go-verbatim parameter names vs Pythonic renames when the Go name shadows a builtin (`input`); A commented its choice, neither marked it RULEBOOK-SILENT",
+   "verdict": "both defensible",
+   "evidence": "The name is local and never wire-visible; both are faithful to Go's Search(ctx, input Input) in behavior. Exactly the 'two agents could answer differently' case the meta-rule targets → queued as a naming rule, not a fault of either port."
+  },
+  {
+   "unit": "websearch/cloud/service.py — request body omitempty",
+   "a_quote": "body: dict[str, str | int] = {\"model\": params.model, \"query\": params.query}\nif params.max_results != 0:\n    body[\"max_results\"] = params.max_results\nif params.country != \"\": ...",
+   "b_quote": "response = self._config.http_client.post(\n    _join_url(...), json=asdict(parameters), headers={...})",
+   "rule_or_gap": "inventory row 62 (WIRE): 'omitting keys whose value is 0/\"\" — max_results iff nonzero, country/language iff nonempty; model/query always' (Go parameters.go omitempty tags)",
+   "verdict": "rulebook right",
+   "evidence": "Go's Parameters carries max_results,omitempty / country,omitempty / language,omitempty (parameters.go) — Marshal DROPS zero values (service.go:32-38 → makeRequest:70). B's asdict always emits all five keys, so a zero-limit call sends \"max_results\":0 where Go sends nothing. Latent on the judge set only because the tool layer's FF-2b coerces 0/negative to 50 before the service ever sees it — on direct service calls it is a wire-shape divergence."
+  },
+  {
+   "unit": "websearch/cloud/service.py — Authorization header (FF-3)",
+   "a_quote": "if api_key != \"\":\n    request.headers[\"Authorization\"] = \"Bearer \" + api_key  # FF-3 fix site",
+   "b_quote": "headers={\"Authorization\": f\"Bearer {self._config.api_key}\"}  # unconditional",
+   "rule_or_gap": "§0 FIX-FORWARD FF-3 ('NO Authorization header when the API key is empty — both tools') + inventory row 68 (WIRE-HEADER-FF3): 'with an EMPTY key the header must be ABSENT... Never emit \"Bearer \" with an empty key'",
+   "verdict": "rulebook right",
+   "evidence": "The SOURCE sets the header unconditionally (service.go:83 — old-side spec); FF-3 changes this exact site and judge s16 asserts the header absent on the new side. B reproduces the pre-fix bug: empty key → 'Authorization: Bearer ' on the wire. Judge-observable divergence."
+  },
+  {
+   "unit": "websearch/cloud/service.py — results decode",
+   "a_quote": "return output.from_response(resp.json())  # row 61: missing/null → [], non-list non-null RAISES (C-6)",
+   "b_quote": "for item in response.get(\"results\", [])\n...\nreturn SearchOutput(results=results)",
+   "rule_or_gap": "inventory row 61 (WIRE-DECODE, corrected per C-6) + §2 nil-slice row: missing key and explicit null both yield []; a non-list non-null value raises (Go whole-decode UnmarshalTypeError)",
+   "verdict": "rulebook right",
+   "evidence": "Go: null into []Results is a no-op → empty list (row 61, probed per review); a mistyped results fails the WHOLE decode (service.go:103-107). B's dict.get('results', []) returns None for an explicit null → 'for item in None' raises TypeError; a string results iterates character-wise into garbage rows. Two C-6 failure modes in one line. Latent on current fixtures, decided by the row."
+  },
+  {
+   "unit": "websearch/cloud/service.py — snippetFromContent chain",
+   "a_quote": "present, parsed, raw_span = content\nif snippet != \"\" or not present:\n    return snippet\nif parsed is None: return \"\"\n...\nreturn raw_span",
+   "b_quote": "def snippet_from_content(snippet: str, content: Any) -> str:\n    if snippet or content is None: return snippet\n    if isinstance(content, str): return content\n    if isinstance(content, dict) and (text := content.get(\"text\")): return text\n    return json.dumps(content)",
+   "rule_or_gap": "inventory row 74 (WIRE) + §0 kept-quirks table ('raw JSON echo' kept): content is (present, parsed_value, raw_span); the echo reproduces ORIGINAL bytes",
+   "verdict": "rulebook right",
+   "evidence": "Three divergences. (1) Raw echo: Go returns string(content) — the verbatim wire span (service.go:128); B returns json.dumps of the PARSED value, so '{\"a\":1}' re-emerges as '{\"a\": 1}' (spaced separators, ensure_ascii escapes) — not byte-exact. (2) Non-string truthy text: B returns the value itself (e.g. int 5 for {\"text\":5}) where Go's Unmarshal into struct{Text string} type-errors and falls to the raw span — B also violates its own -> str annotation (mypy-strict warn_return_any). (3) Null snippet: B's item.get('snippet','') yields None for null and returns it → SearchResult.snippet=None on the wire where Go yields '' (row 61 coerces). A implements all three per row 74."
+  },
+  {
+   "unit": "websearch/cloud/service.py — error class name/base",
+   "a_quote": "class CloudWebSearchError(Exception):  # RULEBOOK-SILENT: name undecided by authorities, chosen by symmetry with the webfetch twin",
+   "b_quote": "class WebSearchError(RuntimeError):",
+   "rule_or_gap": "Gap — inventory row 16 pins CloudWebFetchError(Exception) for the webfetch twin, but no row names the websearch class or base; §2 says only 'typed exception'",
+   "verdict": "both defensible",
+   "evidence": "The judge compares message strings, not class names — unobservable either way. A flagged the silence inline; B guessed differently. Queued: pin the convention (twin-symmetric CloudWebSearchError(Exception)) so the next implementer does not roll dice."
+  },
+  {
+   "unit": "websearch/cloud/service.py — URL join",
+   "a_quote": "parts = urlsplit(base_url)\nsegments = [parts.path, *elements]\n...\nreturn urlunsplit((parts.scheme, parts.netloc, joined, parts.query, parts.fragment))",
+   "b_quote": "def _join_url(base: str, *segments: str) -> str:\n    return \"/\".join((base.rstrip(\"/\"), *segments))",
+   "rule_or_gap": "inventory row 67 (URL-JOIN): same pinned algorithm as row 7, duplicated per package; 'NO empty-BaseURL guard exists here and NONE may be added'",
+   "verdict": "rulebook right",
+   "evidence": "Same divergence as the webfetch twin (query/fragment mangled by rstrip/join); row 67's Go-verified matrix pins e.g. ('http://host/api?v=1#f') -> 'http://host/api/search?v=1#f'. A transcribes the row; B invents. Latent for clean judge bases."
+  },
+  {
+   "unit": "websearch/cloud/service.py — New()/DefaultClient fallback",
+   "a_quote": "def new(cfg: Config) -> service.WebSearchService:\n    if cfg.http_client is None:\n        cfg.http_client = network.new_client(os.environ.get(\"HTTPS_PROXY\", \"\"))\n    return CloudWebSearchService(cfg)",
+   "b_quote": "(absent — Config.http_client defaults to a constructed requests.Session)",
+   "rule_or_gap": "inventory row 64 (New NIL-ZERO) + C-5 constructor spec",
+   "verdict": "rulebook right",
+   "evidence": "Go New (service.go:133-138) swaps nil → http.DefaultClient; row 64/C-5 pin the env-proxy mirror. B omits the constructor entirely and pre-constructs a Session in the dataclass default, erasing Go's nil-zero semantics. Production-dead, but the row decides."
+  },
+  {
+   "unit": "both cloud service ports — guard style",
+   "a_quote": "if input.query == \"\":",
+   "b_quote": "if not search_input.query:",
+   "rule_or_gap": "No rule; equivalent for mypy-strict str",
+   "verdict": "both defensible",
+   "evidence": "Go: input.Query == \"\" (service.go:28). Truthiness and == '' coincide for str; message byte-exact in both. Style noise, no indictment."
+  },
+  {
+   "unit": "postprocessor — ContentWasNotFound sentinel",
+   "a_quote": "except Exception:\n    return \"\"  # ContentWasNotFound == '' (no distinct sentinel)",
+   "b_quote": "CONTENT_WAS_NOT_FOUND = \"Content was not found\"\n...\nreturn content or CONTENT_WAS_NOT_FOUND",
+   "rule_or_gap": "inventory row 46 (NIL-SWALLOW): 'postprocessor.ContentWasNotFound == \\'\\' (postprocessor.go:9) — there is NO distinct sentinel; it is the empty string'",
+   "verdict": "rulebook right",
+   "evidence": "Go: const ContentWasNotFound = \"\" (postprocessor/postprocessor.go:9) — Handle returns '' on any extraction failure (postprocessor.go:30-32). B invented the value ('its exact value is not part of these sources') and returns the string 'Content was not found' wherever Go returns ''. Probed: empty-extraction doc → A '' vs B 'Content was not found'. Judge-visible: the wire text differs. B's own comment shows the cost of porting without the repo/inventory."
+  },
+  {
+   "unit": "postprocessor — Handle signature",
+   "a_quote": "def handle(self, data: bytes, parameters: dict[str, str]) -> str:\n    try:\n        return extract_relevant_text(data, \"text/html\")",
+   "b_quote": "def handle(self, data: bytes | str) -> str:\n    try:\n        content = extract_relevant_text(data)",
+   "rule_or_gap": "inventory row 55 (IFACE): 'def handle(self, data: bytes, parameters: dict[str, str]) -> str'; io.Reader → bytes (not bytes|str); the single call site passes result.data, result.parameters",
+   "verdict": "rulebook right",
+   "evidence": "Go Handle(reader io.Reader, parameters http.Header) hardcodes 'text/html' (postprocessor.go:28-29) and drops the parameter on the floor — the whole of conflicts C-1. B drops the parameters argument from the signature entirely (breaking structural conformance with the Postprocessor Protocol the choice processor holds) and widens data to bytes|str against row 55's deliberate bytes-only mapping."
+  },
+  {
+   "unit": "postprocessor — charset decoding",
+   "a_quote": "head = data[:1024]\nfor bom, codec in _BOMS: ...\ncodec = _prescan(head)\nif codec is None:\n    codec = \"utf-8\" if _looks_like_utf8(head) else \"windows-1252\"\nreturn data.decode(codec, errors=\"replace\")",
+   "b_quote": "soup = BeautifulSoup(data, \"html.parser\")  # 'Encoding detection is delegated to BeautifulSoup (the equivalent of x/net/html/charset)'",
+   "rule_or_gap": "inventory row 48 (BYTES-CHARSET) as corrected by conflicts C-1/C-12: mirror x/net DetermineEncoding on the raw bytes (BOM table in x/net order, 1024-byte meta prescan, UTF-8-validity heuristic, windows-1252 default, errors='replace', UTF-16 strips leading U+FEFF)",
+   "verdict": "rulebook right",
+   "evidence": "The declared Content-Type never reaches the decoder — Handle hardcodes 'text/html' (postprocessor.go:29), so decoding is byte-driven; row 48 mandates the mirror and C-1 records that following §1's param-first text as written would mojibake the s08 cp1251 fixture. B delegates to bs4's UnicodeDammit, an unspecified mechanism. Probed: A-mirror and UnicodeDammit COINCIDE on cp1251-meta, UTF-16-BOM, invalid-UTF-8, and iso-8859-2 fixtures — B passes the judge fixtures by luck of the same meta sniff, not by the pinned mechanism. Also reinforces the already-queued A-1: §1's charset row as written would have licensed neither faithful path."
+  },
+  {
+   "unit": "postprocessor — length thresholds (bytes vs chars)",
+   "a_quote": "def _byte_len(text: str) -> int:\n    return len(text.encode(\"utf-8\"))\n# ... if _byte_len(raw) >= MIN_CODE_LEN: ...",
+   "b_quote": "if len(raw) < MIN_CODE_LEN or raw in seen: ...\nif len(raw) < MIN_TEXT_LEN or raw.startswith(\"Read more\"): ...\ntext_len = len(element.get_text().strip())",
+   "rule_or_gap": "inventory row 53 (BYTES): 'threshold checks compare len(text.encode(\"utf-8\")), never len(text)' — minCodeLen 10, minInlineCode 5, minTextLen 20, minContentLen 200",
+   "verdict": "rulebook right",
+   "evidence": "Go len(string) counts UTF-8 bytes (postprocessor.go:72,79,98,154). Probed: a paragraph of 10 two-byte chars (10 chars, 20 bytes) — A emits it, B drops it (10 < 20) and returns the placeholder; an inline <code> of 5 two-byte chars (5 chars, 10 bytes) — A emits '`ééééé`', B drops it. Judge-observable on any non-ASCII page near a threshold."
+  },
+  {
+   "unit": "postprocessor — no-content-found raise-then-swallow",
+   "a_quote": "result = \"\".join(parts).strip()\nif len(result) == 0:\n    raise ValueError(\"no content found\")\n# handle: except Exception: return \"\"",
+   "b_quote": "return \"\".join(parts).strip()  # extract never raises; handle: return content or CONTENT_WAS_NOT_FOUND",
+   "rule_or_gap": "inventory row 46: three raise sites inside extract 'MUST stay a raise-then-swallow — do not fold it into a direct return \\\"\\\" inside extract (the distinction is unit-test-visible)'",
+   "verdict": "rulebook right",
+   "evidence": "Go extractRelevantText returns ('', errors.New(\"no content found\")) (postprocessor.go:110-114) and Handle swallows it. A mirrors the raise-then-swallow shape the row explicitly mandates; B folds it into a silent empty return. Net wire behavior coincides once the sentinel is fixed to '' — the row still decides, because the internal contract is pinned for unit tests."
+  },
+  {
+   "unit": "postprocessor — title emission",
+   "a_quote": "titles = doc.select(\"title\")\ntitle = \"\".join(t.get_text() for t in titles).strip()",
+   "b_quote": "title = soup.find(\"title\")\nif title is not None and (title_text := title.get_text().strip()):",
+   "rule_or_gap": "inventory row 54 (SELECTOR): 'concatenate ALL matches in document order (goquery Find(\"title\").Text() concatenates every matched element; a second <title> inside inline SVG joins in)'",
+   "verdict": "rulebook right",
+   "evidence": "Go doc.Find(\"title\").Text() concatenates all matches (postprocessor.go:56). Probed: doc with <title>First</title> plus an SVG <title>Second</title> → A '# FirstSecond', B '# First'. Judge-observable on any multi-title page; the row even names this exact SVG case."
+  },
+  {
+   "unit": "postprocessor — clean_document decompose guard",
+   "a_quote": "for el in doc.select(_CLEAN_SELECTORS):\n    el.decompose()",
+   "b_quote": "for element in soup.select(selector):\n    if not element.decomposed:\n        element.decompose()",
+   "rule_or_gap": "No rule decides the guard; row 47 (SELECTOR) pins the selector text and two-pass shape only",
+   "verdict": "both defensible",
+   "evidence": "Nested matches exist (e.g. <header><nav>): Go's Remove() detaches both harmlessly. Probed on bs4 4.12.3 AND 4.15.0: decompose() on an already-decomposed descendant is a no-op, so A's unguarded loop does not raise and the outputs are identical — B's guard is dead defensive weight, not a divergence. Neither pyproject pins beautifulsoup4, so the probe covered the realistic version range."
+  },
+  {
+   "unit": "postprocessor — findMainContent no-<body> branch",
+   "a_quote": "if body is not None: ...\nreturn doc  # TODO(port): divergence — the soup object stands in for the synthesized body",
+   "b_quote": "root = soup.find(\"body\") or soup\n...\nfor element in root.find_all([\"div\", \"section\", \"\"]):",
+   "rule_or_gap": "Gap — row 50 (SELECTOR) pins the priority list and best-div scan but not the no-<body> branch; Go can never reach it (x/net html.Parse ALWAYS synthesizes <body>; bs4+html.parser does not)",
+   "verdict": "both defensible",
+   "evidence": "Probed on a body-less fragment with two 200+-byte divs: A returns the soup as main-content and emits BOTH divs; B scans the whole doc, narrows to the second div and emits only it. Both translations of an unreachable-in-Go branch; A documents its choice with TODO(port), B's is silent. Queued so the next implementer does not re-guess."
+  },
+  {
+   "unit": "postprocessor — selector quote style",
+   "a_quote": "'[role=\"main\"]',",
+   "b_quote": "\"[role='main']\",",
+   "rule_or_gap": "Row 50 pins selector content/order; no rule governs quote characters inside selector strings",
+   "verdict": "both defensible",
+   "evidence": "Go uses double-quoted Go string with single-quoted attribute value ([role='main'], postprocessor.go:141). B keeps it verbatim; A normalizes to double quotes. soupsieve matches on the attribute value regardless of quote style — zero behavioral difference. Pure style noise (noted here so it stays out of the verdicts)."
+  },
+  {
+   "unit": "all three B files — PORT STATUS trailer",
+   "a_quote": "# PORT STATUS: confidence=high todos=2   (present in all three A files; counts match A's actual TODO(port) markers)",
+   "b_quote": "(absent from webfetch_cloud_service.py, websearch_cloud_service.py, postprocessor.py)",
+   "rule_or_gap": "RULEBOOK §6: 'Every translated file ends with a status trailer... a trailer that undercounts is a finding'",
+   "verdict": "rulebook right",
+   "evidence": "All three B files omit the trailer the rulebook makes load-bearing for done-ness detection; all three A files carry it and their todo counts match their inline TODO(port) markers (2/1/2)."
+  }
+ ],
+ "amendment_queue": [
+  {
+   "section": "RULEBOOK §1, Charset decoding row (reinforces already-queued A-1 / conflicts C-1, C-12)",
+   "change": "Land A-1 before fan-out, scoped per C-12: html extractor path = x/net DetermineEncoding mirror on raw bytes (BOM → 1024-byte meta prescan → UTF-8 validity heuristic → windows-1252 default, errors='replace'); text/plain path = utf-8 errors='replace' with NO detection; delete or rewrite the param-first 'Content-Type parameter; if absent, UTF-8' text, which contradicts the source mechanism for the html path.",
+   "evidence": "Handle hardcodes 'text/html' (postprocessor.go:29) so the declared parameter never reaches the decoder; the bakeoff showed both translators bypassing the row differently — A via inventory row 48, B via bs4 UnicodeDammit — and a literal §1 reader would decode the s08 cp1251 fixture as UTF-8 and emit mojibake."
+  },
+  {
+   "section": "RULEBOOK §2 error-model row (+ inventory row 73)",
+   "change": "Add the exception-class convention to the canonical mapping: module-level class named for the pinned message subject, deriving Exception (twin-symmetric with row 16's pinned CloudWebFetchError(Exception)); add the websearch twin name CloudWebSearchError(Exception) to inventory row 73.",
+   "evidence": "Row 16 pins the webfetch class name and base but no row names the websearch class: A invented CloudWebSearchError(Exception) (inline RULEBOOK-SILENT admission), B invented WebSearchError(RuntimeError). Unobservable to the judge (messages are compared, not classes) — exactly the two-agents-answer-differently case the meta-rule targets."
+  },
+  {
+   "section": "inventory row 74 (websearch/cloud/service.go snippetFromContent, WIRE)",
+   "change": "Tighten the dict branch to 'parsed[\"text\"] must be a truthy STRING — a non-string truthy value (e.g. {\"text\": 5}) is a Go Unmarshal type error and falls through to the raw-span echo', and name the concrete content record type (e.g. a plain (present, parsed_value, raw_span) tuple) instead of leaving the shape open.",
+   "evidence": "A had to deviate from the row's literal 'parsed is dict and parsed.get(\"text\") truthy → that text' to match Go (service.go:122-127 unmarshals into struct{Text string}, so a non-string text type-errors); a literal reader of the row (B) returns the int 5 as a snippet. A also flagged the unnamed record type as RULEBOOK-SILENT."
+  },
+  {
+   "section": "inventory row 61 (websearch/cloud/output.go WIRE-DECODE)",
+   "change": "Name the parse entry point and error class explicitly, mirroring rows 5/16: output.from_response(data: dict) as the module-level owner, raising the typed decode behavior per C-6.",
+   "evidence": "The webfetch twin rows name output.from_response and CloudWebFetchError(Exception); the websearch row describes the same ownership but names no function — A had to assume the twin-symmetric contract and marked it RULEBOOK-SILENT."
+  },
+  {
+   "section": "inventory row 48 (html postprocessor BYTES-CHARSET)",
+   "change": "Pin the prescan scan-model: state whether the mirror is a regex scan of every <meta> tag in the first 1024 bytes (A's choice) or x/net's tokenizer-driven early stop, and take a stance on label aliasing (WHATWG maps iso-8859-1 → windows-1252 while Python codecs yields true latin-1) and the tentative-UTF-16 NUL sniff.",
+   "evidence": "A's inline RULEBOOK-SILENT + TODO(port): the row prescribes WHAT to find (<meta charset> / http-equiv forms, charset.go:177-201) but not the stopping semantics or label resolution; no judge fixture exercises any of it, so the next implementer inherits the same open question."
+  },
+  {
+   "section": "inventory row 50 (html postprocessor findMainContent, SELECTOR)",
+   "change": "Pin the no-<body> branch: bs4+html.parser does not synthesize <body> where Go's html.Parse always does, so doc.Find(\"body\") is never empty in Go. Prescribe one stand-in (the soup object as main-content per A, or a whole-document root per B), and mark the branch Go-unreachable.",
+   "evidence": "Probed: on a body-less fragment with two 200+-byte divs, A emits both divs' content while B narrows to the second — two different translations of a branch Go cannot reach; A carried a TODO(port) for it, B chose silently."
+  },
+  {
+   "section": "RULEBOOK §2 (naming) or §4",
+   "change": "Add a naming rule for Go-verbatim identifiers: keep Go's parameter/field names where they are legal Python (require the noqa'd verbatim name when the Go name shadows a builtin, e.g. search(self, input: Input)), or sanction a single rename convention — pick one. Optionally state that zero-guard style (== \"\" vs not) is out of scope so reviewers stop flagging it.",
+   "evidence": "A kept Go's `input` parameter with noqa: A002; B renamed to search_input; webfetch's pinned signature (inventory row 5) and B's FetchOpts copy show the same divergence class. Behavior-neutral, but the meta-rule requires one answer."
+  },
+  {
+   "section": "RULEBOOK §2 pinned-strings row (+ inventory rows 16/73)",
+   "change": "Pin the reason-less status line: Go's resp.Status for a bare 'HTTP/1.1 500' renders '500' with no trailing space; Python f\"{code} {reason_phrase}\" yields '500 ' (httpx, empty reason) and requests yields '500 None'. Prescribe e.g. f\"{code} {reason}\".rstrip() or an explicit fallback.",
+   "evidence": "Both ports diverge from Go on that input (both wrong, latent): A flagged it as TODO(port) noting the judge proxy always sends a reason; B's requests path renders '500 None'. One line closes it before fan-out."
+  },
+  {
+   "section": "RULEBOOK §2 canonical table (new row: nil-impossible struct fields / deref sites)",
+   "change": "Add a row for Go fields whose nil is impossible after New (the *s.cfg.HTTPClient deref sites): prescribe the mechanism — keep the field Optional and mirror the deref with an adjacent assert + comment (A's choice), or make new() the sole constructor returning a non-Optional view — and forbid defaulting the Config field to a constructed client (which erases Go's nil-zero semantics).",
+   "evidence": "Inventory rows 10/11/64 require a non-Optional client after new() but spell no mechanism; A marked the choice RULEBOOK-SILENT and used assert-as-deref-mirror; B sidestepped it by defaulting Config.http_client to a constructed Session, silently deleting Go's nil Config state and the reason New() exists."
+  }
+ ],
+ "verdict_summary": "All six files verified ruff-formatted (ruff format --check: '6 files already formatted'), so no style discount was applied. 30 difference rows across the three units: 22 rulebook right, 7 both defensible, 1 both wrong (reason-less status-line rendering, latent and judge-unreachable), 0 native right. Native-right-zero is not reflexive rule-worship: B is a free-hand baseline that ignored the rulebook wholesale (banned `requests`, no PORT STATUS trailers, self-copied DTOs), and that showed up as four judge-catchable behavior errors — FF-3 'Bearer ' header on empty key (websearch), the invented 'Content was not found' sentinel where Go's ContentWasNotFound is '', char-length instead of byte-length thresholds, and first-title-only emission where goquery concatenates all matches (each probe-confirmed against A). The both-defensible rows are where B's instincts were behaviorally inert or the authorities were genuinely silent: param renames, guard style, selector quote characters, the decompose guard (double-decompose probed safe on bs4 4.12.3 and 4.15.0), the no-<body> branch (unreachable in Go), error-class naming, and the `input` shadowing. B's charset delegation to UnicodeDammit coincides with A's pinned mirror on all probed fixtures — it passes by luck of the same meta sniff, not by the mechanism row 48 pins. Notable A-side latent defects found and queued rather than scored: new() mutates the caller's Config (Go takes it by value) — no B counterpart, so no row; and A's correctness is untouched by the decompose question. Nine amendment-queue entries, five of them straight from A's inline RULEBOOK-SILENT/TODO admissions (prescan scan-model, snippet record type and non-string-text wording, websearch output entry point, nil-impossible deref mechanism, reason-less status line), plus the no-<body> pin, the naming rule, the error-class convention, and reinforcement of the already-queued A-1 charset rewrite. One environment aside, not scored: neither stress scaffold declares the §1 runtime deps (httpx/bs4 absent from A's venv), so neither side could have run the §0 mypy referee against real libraries — a scaffold artifact, but worth fixing before the next round."
+}

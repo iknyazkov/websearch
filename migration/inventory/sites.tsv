@@ -1,0 +1,267 @@
+category	file	line	matched
+HTTP	internal/services/network/client.go	12	func New(proxy string) *http.Client {
+HTTP	internal/services/network/client.go	13	transport := makeTransport(proxy)
+HTTP	internal/services/network/client.go	14	return &http.Client{Transport: transport}
+HTTP	internal/services/network/client.go	19	func makeTransport(proxy string) *http.Transport {
+HTTP	internal/services/network/client.go	20	transport := &http.Transport{
+NIL	internal/services/network/client.go	29	if err != nil {
+HTTP	internal/services/network/client.go	33	transport.Proxy = http.ProxyURL(proxyURL)
+CTX	internal/services/network/client.go	37	func fallbackDial(ctx context.Context, network, addr string) (net.Conn, error) {
+NIL	internal/services/network/client.go	40	if err == nil {
+NIL	internal/services/network/client.go	41	return conn, nil
+NIL	internal/services/network/client.go	46	return nil, err
+NIL	internal/services/network/client.go	50	if splitErr != nil {
+NIL	internal/services/network/client.go	51	return nil, err
+CTX	internal/services/network/client.go	56	Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+BYTES	internal/services/network/client.go	62	if lookupErr != nil || len(ips) == 0 {
+NIL	internal/services/network/client.go	63	return nil, err
+WIRE	internal/services/webfetch/cloud/output.go	4	URL     string `json:"url"`
+WIRE	internal/services/webfetch/cloud/output.go	5	Title   string `json:"title"`
+WIRE	internal/services/webfetch/cloud/output.go	7	Text   string `json:"text"`
+WIRE	internal/services/webfetch/cloud/output.go	8	Length int    `json:"length"`
+WIRE	internal/services/webfetch/cloud/output.go	9	} `json:"content"`
+WIRE	internal/services/webfetch/cloud/parameters.go	4	Model  string `json:"model"`
+WIRE	internal/services/webfetch/cloud/parameters.go	5	URL    string `json:"url"`
+WIRE	internal/services/webfetch/cloud/parameters.go	6	Format string `json:"format,omitempty"`
+HTTP	internal/services/webfetch/cloud/service.go	20	HTTPClient *http.Client
+CTX	internal/services/webfetch/cloud/service.go	29	func (s *CloudWebFetchService) Fetch(ctx context.Context, targetURL string, opts webfetch.FetchOpts)
+NIL	internal/services/webfetch/cloud/service.go	31	return nil, errors.New("url must not be empty")
+NIL	internal/services/webfetch/cloud/service.go	34	return nil, errors.New("base_url must not be empty")
+NIL	internal/services/webfetch/cloud/service.go	49	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	50	return nil, err
+NIL	internal/services/webfetch/cloud/service.go	55	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	56	return nil, err
+NIL	internal/services/webfetch/cloud/service.go	60	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	61	return nil, err
+NIL	internal/services/webfetch/cloud/service.go	71	}, nil
+CTX	internal/services/webfetch/cloud/service.go	76	func makeRequest(ctx context.Context, url string, apiKey string, parameters Parameters) (*http.Reque
+WIRE	internal/services/webfetch/cloud/service.go	77	body, err := json.Marshal(parameters)
+NIL	internal/services/webfetch/cloud/service.go	78	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	79	return nil, err
+HTTP	internal/services/webfetch/cloud/service.go	82	request, err := http.NewRequestWithContext(
+BYTES	internal/services/webfetch/cloud/service.go	86	bytes.NewReader(body),
+NIL	internal/services/webfetch/cloud/service.go	88	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	89	return nil, err
+HTTP	internal/services/webfetch/cloud/service.go	92	request.Header.Set("Content-Type", "application/json")
+HTTP	internal/services/webfetch/cloud/service.go	94	request.Header.Set("Authorization", "Bearer "+apiKey)
+NIL	internal/services/webfetch/cloud/service.go	97	return request, nil
+HTTP	internal/services/webfetch/cloud/service.go	100	func performRequest(client http.Client, request *http.Request) (*Output, error) {
+HTTP	internal/services/webfetch/cloud/service.go	101	resp, err := client.Do(request)
+NIL	internal/services/webfetch/cloud/service.go	102	if err != nil {
+NIL	internal/services/webfetch/cloud/service.go	103	return nil, err
+DEFER	internal/services/webfetch/cloud/service.go	105	defer resp.Body.Close()
+HTTP	internal/services/webfetch/cloud/service.go	107	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+BYTES	internal/services/webfetch/cloud/service.go	108	rbody, _ := io.ReadAll(resp.Body)
+NIL	internal/services/webfetch/cloud/service.go	109	return nil, fmt.Errorf("web fetch failed: %s: %s", resp.Status, string(rbody))
+NIL	internal/services/webfetch/cloud/service.go	113	if err := json.NewDecoder(resp.Body).Decode(&output); err != nil {
+NIL	internal/services/webfetch/cloud/service.go	114	return nil, err
+NIL	internal/services/webfetch/cloud/service.go	117	return &output, nil
+NIL	internal/services/webfetch/cloud/service.go	123	if cfg.HTTPClient == nil {
+CTX	internal/services/webfetch/complex/service.go	14	func (service *ComplexWebFetchService) Fetch(ctx context.Context, url string, opts webfetch.FetchOpt
+NIL	internal/services/webfetch/complex/service.go	16	if err == nil {
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	17	client *http.Client
+CTX	internal/services/webfetch/local/grabber/client/grabber.go	24	func (g *ClientGrabber) Grab(ctx context.Context, resource grabber.Resource) (*grabber.Result, error
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	25	req, err := http.NewRequestWithContext(ctx, "GET", resource.Address, nil)
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	26	if err != nil {
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	27	return nil, err
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	30	req.Header.Set("User-Agent", getFingerprint())
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	31	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8;text/plain
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	33	resp, err := g.client.Do(req)
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	34	if err != nil {
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	35	return nil, err
+DEFER	internal/services/webfetch/local/grabber/client/grabber.go	37	defer resp.Body.Close()
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	39	if resp.StatusCode != http.StatusOK {
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	40	return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+BYTES	internal/services/webfetch/local/grabber/client/grabber.go	44	Reader:     io.LimitReader(resp.Body, maxBodySize),
+NIL	internal/services/webfetch/local/grabber/client/grabber.go	46	}, nil
+HTTP	internal/services/webfetch/local/grabber/client/grabber.go	57	func NewGrabber(client *http.Client) grabber.ContentGrabber {
+REGEX	internal/services/webfetch/local/grabber/github/grabber.go	23	githubRepoRegex  = regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/?$`)
+REGEX	internal/services/webfetch/local/grabber/github/grabber.go	24	githubFileRegex  = regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)`)
+REGEX	internal/services/webfetch/local/grabber/github/grabber.go	25	githubIssueRegex = regexp.MustCompile(`^https?://github\.com/([^/]+)/([^/]+)/(issues|pull)/(\d+)`)
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	29	client   *http.Client
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	35	if err != nil {
+CTX	internal/services/webfetch/local/grabber/github/grabber.go	41	func (g *GithubGrabber) Grab(ctx context.Context, resource grabber.Resource) (*grabber.Result, error
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	44	if matches := githubFileRegex.FindStringSubmatch(urlStr); matches != nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	50	if matches := githubRepoRegex.FindStringSubmatch(urlStr); matches != nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	56	if matches := githubIssueRegex.FindStringSubmatch(urlStr); matches != nil {
+CTX	internal/services/webfetch/local/grabber/github/grabber.go	68	func (g *GithubGrabber) fetch(ctx context.Context, fetchURL string, contentType string) (*grabber.Re
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	69	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	70	if err != nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	71	return nil, err
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	74	req.Header.Set("User-Agent", client.Firefox.Value())
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	76	req.Header.Set("Accept", githubJsonContentType)
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	79	resp, err := g.client.Do(req)
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	80	if err != nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	81	return nil, err
+DEFER	internal/services/webfetch/local/grabber/github/grabber.go	83	defer resp.Body.Close()
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	85	if resp.StatusCode != http.StatusOK {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	86	return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
+BYTES	internal/services/webfetch/local/grabber/github/grabber.go	89	body, err := io.ReadAll(resp.Body)
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	90	if err != nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	91	return nil, err
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	94	header := make(http.Header)
+BYTES	internal/services/webfetch/local/grabber/github/grabber.go	98	Reader:     bytes.NewReader(body),
+NIL	internal/services/webfetch/local/grabber/github/grabber.go	100	}, nil
+HTTP	internal/services/webfetch/local/grabber/github/grabber.go	103	func NewGrabber(client *http.Client, fallback grabber.ContentGrabber) grabber.ContentGrabber {
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	55	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+BYTES	internal/services/webfetch/local/grabber/github/grabber_test.go	59	Body:       io.NopCloser(strings.NewReader("body")),
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	60	Header:     make(http.Header),
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	61	}, nil
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	66	if err != nil {
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	72	if gotReq.Header.Get("User-Agent") != "websearch/1.0" {
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	73	t.Fatalf("User-Agent = %q", gotReq.Header.Get("User-Agent"))
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	75	if gotReq.Header.Get("Accept") != tt.wantAccept {
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	76	t.Fatalf("Accept = %q, want %q", gotReq.Header.Get("Accept"), tt.wantAccept)
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	78	if got.Parameters.Get("Content-Type") != tt.wantType {
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	79	t.Fatalf("Content-Type = %q, want %q", got.Parameters.Get("Content-Type"), tt.wantType)
+BYTES	internal/services/webfetch/local/grabber/github/grabber_test.go	86	fallback := &mockGrabber{result: &grabber.Result{Reader: strings.NewReader("fallback")}}
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	87	g := &GithubGrabber{client: &http.Client{}, fallback: fallback}
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	90	if err != nil {
+DEFER	internal/services/webfetch/local/grabber/github/grabber_test.go	118	defer srv.Close()
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	123	if err == nil {
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	124	t.Fatal("fetch() error = nil")
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	128	if err != nil {
+BYTES	internal/services/webfetch/local/grabber/github/grabber_test.go	131	body, err := io.ReadAll(got.Reader)
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	132	if err != nil {
+ERR	internal/services/webfetch/local/grabber/github/grabber_test.go	143	wantErr := errors.New("boom")
+HTTP	internal/services/webfetch/local/grabber/github/grabber_test.go	144	g := &GithubGrabber{client: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Res
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	145	return nil, wantErr
+CTX	internal/services/webfetch/local/grabber/github/grabber_test.go	169	func (m *mockGrabber) Grab(ctx context.Context, resource grabber.Resource) (*grabber.Result, error) 
+NIL	internal/services/webfetch/local/grabber/github/grabber_test.go	171	return m.result, nil
+IFACE	internal/services/webfetch/local/grabber/grabber.go	7	type ContentGrabber interface {
+CTX	internal/services/webfetch/local/grabber/grabber.go	9	Grab(ctx context.Context, resource Resource) (*Result, error)
+HTTP	internal/services/webfetch/local/postprocessor/choice/processor.go	22	contentType := parameters.Get("Content-Type")
+BYTES	internal/services/webfetch/local/postprocessor/choice/processor.go	27	rawBytes, err := io.ReadAll(reader)
+NIL	internal/services/webfetch/local/postprocessor/choice/processor.go	28	if err != nil {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	11	"github.com/PuerkitoBio/goquery"
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	30	if err != nil {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	40	utf8Reader, err := charset.NewReader(reader, contentType)
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	41	if err != nil {
+ERR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	42	return "", fmt.Errorf("charset detection: %w", err)
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	45	doc, err := goquery.NewDocumentFromReader(utf8Reader)
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	46	if err != nil {
+ERR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	47	return "", fmt.Errorf("parse HTML: %w", err)
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	54	seen := make(map[uint64]struct{})
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	56	if title := strings.TrimSpace(doc.Find("title").Text()); title != "" {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	60	if desc, exists := doc.Find(`meta[name="description"]`).Attr("content"); exists {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	66	mainContent.Find("h1,h2,h3,h4,p,li,blockquote,pre,code").Each(func(_ int, s *goquery.Selection) {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	67	node := goquery.NodeName(s)
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	72	if len(raw) >= minCodeLen {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	79	if len(raw) >= minInlineCode && node == "code" {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	88	if len(raw) > 0 {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	98	if len(raw) < minTextLen || strings.HasPrefix(raw, "Read more") {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	111	if len(result) == 0 {
+ERR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	112	return "", fmt.Errorf("no content found")
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	114	return result, nil
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	117	func cleanDocument(doc *goquery.Document) {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	118	doc.Find(`
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	131	doc.Find(`[data-ad], [data-adunit], [aria-label*="ad"]`).Remove()
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	134	func findMainContent(doc *goquery.Document) *goquery.Selection {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	145	if s := doc.Find(sel); s.Length() > 0 {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	150	var best *goquery.Selection
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	153	doc.Find("body").Find("div, section, article").Each(func(_ int, s *goquery.Selection) {
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	154	textLen := len(strings.TrimSpace(s.Text()))
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	155	childCount := s.Find("p, h1, h2, h3").Length()
+NIL	internal/services/webfetch/local/postprocessor/html/postprocessor.go	162	if best != nil {
+SELECTOR	internal/services/webfetch/local/postprocessor/html/postprocessor.go	166	return doc.Find("body")
+BYTES	internal/services/webfetch/local/postprocessor/html/postprocessor.go	171	h.Write([]byte(s))
+IFACE	internal/services/webfetch/local/postprocessor/postprocessor.go	12	type Postprocessor interface {
+HTTP	internal/services/webfetch/local/service.go	16	client *http.Client
+CTX	internal/services/webfetch/local/service.go	19	func (service *LocalWebFetchService) Fetch(ctx context.Context, url string, opts webfetch.FetchOpts)
+NIL	internal/services/webfetch/local/service.go	23	if err != nil {
+NIL	internal/services/webfetch/local/service.go	24	return nil, err
+BYTES	internal/services/webfetch/local/service.go	36	Length: len(value),
+NIL	internal/services/webfetch/local/service.go	38	}, nil
+HTTP	internal/services/webfetch/local/service.go	43	func getGrabber(httpClient *http.Client, resource grabber.Resource) grabber.ContentGrabber {
+HTTP	internal/services/webfetch/local/service.go	56	func NewWebFetchService(client *http.Client) webfetch.WebFetchService {
+IFACE	internal/services/webfetch/service.go	5	type WebFetchService interface {
+CTX	internal/services/webfetch/service.go	6	Fetch(ctx context.Context, url string, opts FetchOpts) (*FetchResult, error)
+WIRE	internal/services/websearch/cloud/output.go	6	Results []Results `json:"results"`
+WIRE	internal/services/websearch/cloud/output.go	10	Title   string          `json:"title"`
+WIRE	internal/services/websearch/cloud/output.go	11	URL     string          `json:"url"`
+WIRE	internal/services/websearch/cloud/output.go	12	Snippet string          `json:"snippet"`
+WIRE	internal/services/websearch/cloud/output.go	13	Content json.RawMessage `json:"content"`
+WIRE	internal/services/websearch/cloud/parameters.go	4	Model      string `json:"model"`
+WIRE	internal/services/websearch/cloud/parameters.go	5	Query      string `json:"query"`
+WIRE	internal/services/websearch/cloud/parameters.go	6	MaxResults int    `json:"max_results,omitempty"`
+WIRE	internal/services/websearch/cloud/parameters.go	7	Country    string `json:"country,omitempty"`
+WIRE	internal/services/websearch/cloud/parameters.go	8	Language   string `json:"language,omitempty"`
+HTTP	internal/services/websearch/cloud/service.go	18	HTTPClient  *http.Client
+CTX	internal/services/websearch/cloud/service.go	27	func (s *CloudWebSearchService) Search(ctx context.Context, input websearch.Input) (*websearch.Outpu
+NIL	internal/services/websearch/cloud/service.go	29	return nil, fmt.Errorf("query must not be empty")
+NIL	internal/services/websearch/cloud/service.go	41	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	42	return nil, err
+NIL	internal/services/websearch/cloud/service.go	47	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	48	return nil, err
+NIL	internal/services/websearch/cloud/service.go	52	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	53	return nil, err
+BYTES	internal/services/websearch/cloud/service.go	56	results := make([]websearch.SearchResult, 0, len(output.Results))
+NIL	internal/services/websearch/cloud/service.go	64	return &websearch.Output{Results: results}, nil
+CTX	internal/services/websearch/cloud/service.go	69	func makeRequest(ctx context.Context, url string, apiKey string, parameters Parameters) (*http.Reque
+WIRE	internal/services/websearch/cloud/service.go	70	body, err := json.Marshal(parameters)
+NIL	internal/services/websearch/cloud/service.go	71	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	72	return nil, err
+HTTP	internal/services/websearch/cloud/service.go	75	request, err := http.NewRequestWithContext(
+BYTES	internal/services/websearch/cloud/service.go	79	bytes.NewReader(body),
+HTTP	internal/services/websearch/cloud/service.go	82	request.Header.Set("Content-Type", "application/json")
+HTTP	internal/services/websearch/cloud/service.go	83	request.Header.Set("Authorization", "Bearer "+apiKey)
+NIL	internal/services/websearch/cloud/service.go	85	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	86	return nil, err
+NIL	internal/services/websearch/cloud/service.go	89	return request, nil
+HTTP	internal/services/websearch/cloud/service.go	92	func performRequest(client http.Client, request *http.Request) (*Output, error) {
+HTTP	internal/services/websearch/cloud/service.go	93	resp, err := client.Do(request)
+NIL	internal/services/websearch/cloud/service.go	94	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	95	return nil, err
+DEFER	internal/services/websearch/cloud/service.go	97	defer resp.Body.Close()
+HTTP	internal/services/websearch/cloud/service.go	99	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+NIL	internal/services/websearch/cloud/service.go	100	return nil, fmt.Errorf("search request failed: %s", resp.Status)
+NIL	internal/services/websearch/cloud/service.go	105	if err != nil {
+NIL	internal/services/websearch/cloud/service.go	106	return nil, err
+BYTES	internal/services/websearch/cloud/service.go	113	if snippet != "" || len(content) == 0 {
+NIL	internal/services/websearch/cloud/service.go	118	if err := json.Unmarshal(content, &stringContent); err == nil {
+WIRE	internal/services/websearch/cloud/service.go	123	Text string `json:"text"`
+NIL	internal/services/websearch/cloud/service.go	125	if err := json.Unmarshal(content, &obj); err == nil && obj.Text != "" {
+NIL	internal/services/websearch/cloud/service.go	134	if cfg.HTTPClient == nil {
+BYTES	internal/services/websearch/cloud/service_test.go	165	if err := json.Unmarshal([]byte(testData), &out); err != nil {
+BYTES	internal/services/websearch/cloud/service_test.go	168	if len(out.Results) != 5 {
+BYTES	internal/services/websearch/cloud/service_test.go	169	t.Fatalf("got %d results, want 5", len(out.Results))
+BYTES	internal/services/websearch/cloud/service_test.go	175	if len(r.Content) == 0 {
+IFACE	internal/services/websearch/service.go	5	type WebSearchService interface {
+CTX	internal/services/websearch/service.go	6	Search(ctx context.Context, input Input) (*Output, error)
+WIRE	internal/tools/webfetch/input.go	4	URL string `json:"url" jsonschema:"The URL to fetch content from"`
+WIRE	internal/tools/webfetch/output.go	4	Text   string `json:"text" jsonschema:"The text content (typically markdown)"`
+WIRE	internal/tools/webfetch/output.go	5	Length int    `json:"length" jsonschema:"Character length of the text content"`
+WIRE	internal/tools/webfetch/output.go	9	URL     string  `json:"url" jsonschema:"The URL that was fetched"`
+WIRE	internal/tools/webfetch/output.go	10	Title   string  `json:"title" jsonschema:"Title of the fetched page"`
+WIRE	internal/tools/webfetch/output.go	11	Content Content `json:"content" jsonschema:"Processed content"`
+CTX	internal/tools/webfetch/webfetch.go	20	mcp.AddTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, input Input) (*mcp.Cal
+NIL	internal/tools/webfetch/webfetch.go	22	if err != nil {
+NIL	internal/tools/webfetch/webfetch.go	23	return nil, nil, err
+NIL	internal/tools/webfetch/webfetch.go	26	return &mcp.CallToolResult{}, output, nil
+NIL	internal/tools/webfetch/webfetch.go	31	schema, err := jsonschema.For[Output](nil)
+NIL	internal/tools/webfetch/webfetch.go	32	if err != nil {
+CTX	internal/tools/webfetch/webfetch.go	38	func handler(ctx context.Context, input Input, webFetchService webfetch.WebFetchService) (*Output, e
+NIL	internal/tools/webfetch/webfetch.go	40	return nil, fmt.Errorf("URL must be fully-formed and start with http:// or https://")
+NIL	internal/tools/webfetch/webfetch.go	44	if err != nil {
+NIL	internal/tools/webfetch/webfetch.go	45	return nil, err
+NIL	internal/tools/webfetch/webfetch.go	55	}, nil
+WIRE	internal/tools/websearch/input.go	4	Query string `json:"query" jsonschema:"The search query to use"`
+WIRE	internal/tools/websearch/output.go	4	Results []SearchHit `json:"results" jsonschema:"Array of search hits"`
+WIRE	internal/tools/websearch/output.go	8	URL     string `json:"url" jsonschema:"The URL of the search result"`
+WIRE	internal/tools/websearch/output.go	9	Title   string `json:"query" jsonschema:"The title of the search result"`
+WIRE	internal/tools/websearch/output.go	10	Content string `json:"content" jsonschema:"Result of search"`
+CTX	internal/tools/websearch/websearch.go	21	mcp.AddTool(server, tool, func(ctx context.Context, req *mcp.CallToolRequest, input Input) (*mcp.Cal
+NIL	internal/tools/websearch/websearch.go	23	if err != nil {
+NIL	internal/tools/websearch/websearch.go	24	return nil, nil, err
+NIL	internal/tools/websearch/websearch.go	27	return &mcp.CallToolResult{}, output, nil
+NIL	internal/tools/websearch/websearch.go	36	if err != nil {
+CTX	internal/tools/websearch/websearch.go	43	func handler(ctx context.Context, input Input, webSearchService websearch.WebSearchService) (*Output
+NIL	internal/tools/websearch/websearch.go	50	if err != nil {
+NIL	internal/tools/websearch/websearch.go	51	return nil, err
+BYTES	internal/tools/websearch/websearch.go	54	searchHits := make([]SearchHit, 0, len(webSearchOutput.Results))
+NIL	internal/tools/websearch/websearch.go	65	return &Output{Results: searchHits}, nil
+TIME	internal/tools/websearch/websearch.go	69	return time.Now().Format("Jan 2006")
+NIL	main.go	30	server := mcp.NewServer(implementation, nil)
+NIL	main.go	35	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+HTTP	main.go	40	func RegisterWebSearch(server *mcp.Server, client *http.Client) {
+HTTP	main.go	51	func RegisterWebFetch(server *mcp.Server, client *http.Client) {

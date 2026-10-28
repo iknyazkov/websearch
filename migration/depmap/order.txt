@@ -1,0 +1,19 @@
+# one line per Go package (translation unit), dependencies first
+internal/services/logger/async_writer.go	internal/services/logger/file_writter.go	internal/services/logger/format_writer.go	internal/services/logger/logger.go
+internal/services/network/client.go
+internal/services/webfetch/service.go
+internal/services/webfetch/cloud/output.go	internal/services/webfetch/cloud/parameters.go	internal/services/webfetch/cloud/service.go
+internal/services/webfetch/complex/service.go
+internal/services/webfetch/local/grabber/grabber.go	internal/services/webfetch/local/grabber/resource.go	internal/services/webfetch/local/grabber/result.go
+internal/services/webfetch/local/grabber/client/fingerprint.go	internal/services/webfetch/local/grabber/client/grabber.go
+internal/services/webfetch/local/grabber/github/grabber.go	internal/services/webfetch/local/grabber/github/grabber_test.go
+internal/services/webfetch/local/postprocessor/postprocessor.go
+internal/services/webfetch/local/postprocessor/html/postprocessor.go
+internal/services/webfetch/local/postprocessor/choice/processor.go
+internal/services/webfetch/local/service.go
+internal/services/webfetch/local/postprocessor/markdown/postprocessor.go
+internal/services/websearch/service.go
+internal/services/websearch/cloud/output.go	internal/services/websearch/cloud/parameters.go	internal/services/websearch/cloud/service.go	internal/services/websearch/cloud/service_test.go
+internal/tools/webfetch/input.go	internal/tools/webfetch/output.go	internal/tools/webfetch/prompt.go	internal/tools/webfetch/webfetch.go
+internal/tools/websearch/input.go	internal/tools/websearch/output.go	internal/tools/websearch/prompt.go	internal/tools/websearch/websearch.go
+main.go

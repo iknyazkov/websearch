@@ -1,0 +1,258 @@
+{
+  "amendment_queue": [
+    {
+      "section": "RULEBOOK §2, error-model row pinned-strings list (2nd touch of a round-1-amended row — A-10/A-14 amended this row in round 1: STOP SIGNAL for the human)",
+      "change": "Add `request failed with status {code}` to the pinned byte-exact string list; it is the only app error string the judge pins that the list omits.",
+      "evidence": "grabber.go:86 produces it; judge APP_ERROR_RE (migration/judge/harness.py:149-151) includes 'request failed with status' as an exact-compare app prefix; §2's list has 5 strings, none of them this one — A had to cite inventory rows 27/29/31 instead of the rulebook for a string the rulebook claims to enumerate completely."
+    },
+    {
+      "section": "RULEBOOK §1, MCP server row (2nd touch of §1 — round 1 A-1 amended §1's charset row; different row, same section: say so explicitly)",
+      "change": "Replace '@list_tools/@call_tool handlers' with the pinned SDK's actual registration API: constructor kwargs on_list_tools/on_call_tool or Server.add_request_handler('tools/list'|'tools/call', params_type, handler). The decorator API named in the row does not exist in mcp 2.3.0.",
+      "evidence": "Probed against the repo venv (mcp 2.3.0): hasattr(Server,'list_tools') and hasattr(Server,'call_tool') are both False; mcp/server/lowlevel/server.py:308-360 shows on_* constructor kwargs and add_request_handler (line 484) as the registration surface. An implementer following §1 verbatim hunts for a nonexistent API — B bailed to the banned MCPServer layer partly on this."
+    },
+    {
+      "section": "RULEBOOK §1 MCP row + inventory rows 90/91 — multi-tool handler composition (again §1: bundle with the previous entry's flag)",
+      "change": "Decide how TWO register() calls share the low-level Server's single tools/list + tools/call slot: either main.py owns one dispatch table (recommended — composition lives at the wiring site, not inside each tool unit) or the rulebook pins A's compose-with-previous-handler convention as mandatory for every tool unit.",
+      "evidence": "add_request_handler REPLACES any existing handler for the same method (probed: docstring 'Replaces any existing handler for the same method', lowlevel/server.py:484-507), so register_web_search then register_web_fetch silently drops the first tool; Go's mcp.AddTool accumulates. A marked it RULEBOOK-SILENT and composed with previous handlers; nothing obliges the webfetch twin to compose identically — order-dependent clobbering is one uncoordinated unit away."
+    },
+    {
+      "section": "Inventory row 91 (NIL-SDK, tools/websearch Register handler closure) — promote the contingency to the decision",
+      "change": "Rewrite row 91's primary: on the sanctioned low-level Server the call_tool handler MUST catch the app exception and build CallToolResult(is_error=True, content=[TextContent(text=str(exc))]) itself; a bare raise is WRONG (it becomes a JSON-RPC error response, never the isError tool-result text the judge compares).",
+      "evidence": "mcp 2.3.0 source: jsonrpc_dispatcher.py:771-782 — a raising request handler produces ErrorData/JSONRPCError, never an isError CallToolResult; and on the banned MCPServer layer a non-ToolError crash is decorated to 'Error executing tool <name>' with 'nothing from the original' reaching the client (mcpserver/exceptions.py:61-71). Row 91's primary (bare raise) and its MCPServer assumption both fail; A already shipped the corrected form with a probe note and TODO(port)."
+    },
+    {
+      "section": "RULEBOOK §4 naming rule (2nd touch of §4 naming — round-1 A-13 created it: STOP SIGNAL for the human)",
+      "change": "Extend A-13 with the case-split it lacks: single-identifier Go names stay verbatim (input, search); MULTI-WORD Go identifiers snake_case mechanically (IsCanGrab → is_cangrab, getMonthYear → get_month_year, webSearchService → web_search_service). As written ('names that are legal Python stay VERBATIM') the rule mandates camelCase webSearchService — no translator obeys that, and method names are entirely uncovered.",
+      "evidence": "B chose can_grab and month_year free of any rule; only inventory row 41 pins is_cangrab, for one file. BOTH translators snake_cased the webSearchService parameter this round despite the round-1 verbatim rule — the rule and observed practice already disagree."
+    },
+    {
+      "section": "Inventory row 29 (github/grabber.go IsCanGrab host check) — add the ValueError guard (2nd touch of the round-1-amended github-grabber rows: the row was rewritten in round 1 for \\Z; say so explicitly)",
+      "change": "Amend the pinned host-check form to wrap urlsplit in try/except ValueError → return False: Go's url.Parse ERROR path maps to False, and urlsplit RAISES ValueError('Invalid IPv6 URL') on malformed bracket hosts — the row's current form crashes where Go returns false.",
+      "evidence": "Probed: urlsplit('https://[::1/o/r') raises ValueError; Go url.Parse errors on the same input ('missing ] in host') → IsCanGrab returns false; the URL passes the tool's HasPrefix guard (webfetch.go:39-41), so the crash is reachable. A's port (row-faithful) propagates the exception; B's try/except is the correct mirror."
+    },
+    {
+      "section": "Inventory rows 33 + 39 (TestGrabRoutesGithubURLs Accept assertion; roundTripFunc caveat) — correct the httpx header-merge rationale (2nd touch of the round-1-amended test rows: the MockTransport mapping was spelled there in round 1)",
+      "change": "Scope the 'httpx merges the client default accept */* into the request' caveat to client.get()/build_request() only: a bare httpx.Request sent via client.send() receives NO default headers, so the Go assertion Header.Get('Accept') == '' IS expressible in a send()-based port as request.headers.get('accept') is None. The prescribed assertion form (≠ vnd.github) still passes either way; only the rationale is false for A's construction.",
+      "evidence": "Probed with httpx 0.28.1 MockTransport: request built as httpx.Request(...)+client.send() arrives at the transport with accept = None; client.get() arrives with accept = '*/*'. A's own grabber_test comment (lines 112-115) repeats the wrong rationale about its own send()-based port; the wire-faithful consequence (no Accept header on the file route, exactly like Go) is currently undocumented anywhere."
+    }
+  ],
+  "rows": [
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "from websearch.services.webfetch.local.grabber.result import Result  (file at src/websearch/services/webfetch/local/grabber/github/grabber.py + empty __init__.py)",
+      "b_quote": "@dataclass(frozen=True)\\nclass Result:\\n    body: bytes\\n    content_type: str  (flat github_grabber.py with Resource, Result, ContentGrabber all inlined)",
+      "rule_or_gap": "§4 module map + shared-types rule; inventory rows 41/43/44 pin owner modules grabber.py/resource.py/result.py",
+      "verdict": "rulebook right",
+      "evidence": "Go tree has separate grabber.go/resource.go/result.go/client/fingerprint.go; manifest maps 31 units. B's inlined duplicates collide with the owner modules at integration. Caveat noted: A's workspace lacks the sibling modules entirely (dangling imports — the DEV-006 pattern recurring), so only B's files import; that is a workspace/done-ness failure, not a §4 defect."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "GITHUB_REPO_REGEX = re.compile(r\"^https?://github\\.com/([^/]+)/([^/]+)/?\\Z\")",
+      "b_quote": "_REPO_RE = re.compile(r\"https?://github\\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/?$\")",
+      "rule_or_gap": "§2 regexp row (round-1 amended: Go `$` → Python `\\Z`); inventory rows 28/29",
+      "verdict": "rulebook right",
+      "evidence": "Probed: Python `$` matches 'https://github.com/o/r/\\n' (True), `\\Z` does not (False); Go `$` is end-of-text only. For that URL Go's url.Parse rejects the control char → IsCanGrab false → client grabber fetches the raw URL; A's \\Z nils the regex → fallback (same client grabber) — net-identical. B's `$` matches → fetches api.github.com/repos/o/r, a URL Go never fetches. B's dropped `^` with .match() is equivalent (cosmetic)."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "_, _, hostport = parts.netloc.rpartition(\"@\")\\nreturn hostport in (\"github.com\", \"www.github.com\")",
+      "b_quote": "host = urlparse(resource.address).hostname\\nreturn host in (\"github.com\", \"www.github.com\")",
+      "rule_or_gap": "inventory row 29 (userinfo-stripped, case-preserved authority compare); no §2 row",
+      "verdict": "rulebook right",
+      "evidence": "Probed: urlparse().hostname lowercases ('https://GITHUB.COM/o/r' → 'github.com', B returns True) and strips the port (':443' → True) while Go's url.Host preserves case and includes port ('GITHUB.COM'/'github.com:443' → IsCanGrab false); A's netloc compare matches Go on both. Both strip userinfo (probed rpartition == hostname == 'github.com')."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "# \"%zz\" needs no special case: urlsplit does not raise; the empty netloc yields False",
+      "b_quote": "try:\\n    host = urlparse(resource.address).hostname\\nexcept ValueError:\\n    return False",
+      "rule_or_gap": "GAP: row 29 pinned urlsplit-no-raise from the %zz case only; urlsplit's ValueError path is undecided — and row 29's pinned form is wrong for it",
+      "verdict": "native right",
+      "evidence": "Probed: urlsplit('https://[::1/o/r') RAISES ValueError('Invalid IPv6 URL'); Go url.Parse errors on the same input → IsCanGrab returns false. The URL passes the tool's prefix guard (webfetch.go:39-41), so A's is_cangrab propagates a crash where Go routes to the client grabber. B's try/except mirrors Go's error branch. Queued: inventory row 29 must add the guard."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "if response.status_code != 200:\\n    raise RequestFailedError(f\"request failed with status {response.status_code}\")",
+      "b_quote": "response.raise_for_status()",
+      "rule_or_gap": "§2 error row (byte-exact wire messages) + exception-class row; inventory rows 27/29; judge APP_ERROR_RE",
+      "verdict": "rulebook right",
+      "evidence": "Go grabber.go:85-86 errors on ANY non-200 (a 201/204 errors in Go; httpx raise_for_status passes all 2xx through — B returns the body silently). Message: httpx yields \"Client error '404 Not Found' for url …\" ≠ the pinned byte-exact 'request failed with status 404', which judge APP_ERROR_RE (harness.py:149-151) exact-compares. A's typed module-level Exception class matches §2's errors.New convention. 302 coincidentally raises in httpx 0.28 (probed)."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "def __init__(self, client: httpx.Client | None = None, fallback: ContentGrabber | None = None) -> None:\\n    self.client = client\\n    self.fallback = fallback\\n...\\nassert self.client is not None  # RULEBOOK §2 field-deref row",
+      "b_quote": "self._client = client if client is not None else httpx.Client()",
+      "rule_or_gap": "§2 field-deref row (NEVER default a constructed client), §1 trust_env=False + C-2 timeout=None, §4 client.py home rule",
+      "verdict": "rulebook right",
+      "evidence": "B's default erases Go's nil-zero semantics (&GithubGrabber{} has nil client; a deref panics — A's assert is the sanctioned analogue) and constructs an httpx client OUTSIDE services/network/client.py with trust_env=True and httpx's default 5s timeout — both contra §1/C-2. B also drops the NewGrabber analogue and reorders params (fallback first)."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "return Result(data=body, parameters={\"content-type\": content_type})",
+      "b_quote": "return Result(body=response.content, content_type=content_type)",
+      "rule_or_gap": "inventory row 44 (result.go BYTES: Result(data, parameters) with lowercased dict keys) + row 30 (NIL-MAKE)",
+      "verdict": "rulebook right",
+      "evidence": "Result is shared by two producers (client grabber, github fetch) and one consumer (choice processor does parameters.get('content-type') per the FF-6 row); row 44 pins field names data/parameters and the lowercase-key convention, and pins that upstream response headers are DISCARDED — B's frozen(body, content_type) reshape breaks both producers and the consumer's lookup contract."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "request = httpx.Request(\"GET\", fetch_url)\\nrequest.headers[\"User-Agent\"] = FIREFOX_UA\\n...\\nresponse = self.client.send(request)",
+      "b_quote": "response = self._client.get(url, headers=headers)",
+      "rule_or_gap": "GAP: no §2/inventory row pins http.Request construction mechanics; row 39 documents default-header merging for tests only",
+      "verdict": "rulebook right",
+      "evidence": "Probed: a bare httpx.Request sent via client.send() receives NO client default headers (accept = None at the transport) — A's file-route request carries no Accept header, exactly like Go (Accept set only on the json route, grabber.go:75-77); B's client.get() merges Accept: */* onto every request (probed), an extra header Go never sends. Unjudged at proxy level but an observable wire divergence; A wins on Go behavior, and the gap is queued (rows 33/39 rationale)."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "def is_cangrab(self, resource: Resource) -> bool:\\ndef fetch(self, fetch_url: str, content_type: str) -> Result:\\ndef new_grabber(client, fallback) -> ContentGrabber:",
+      "b_quote": "def can_grab(self, resource: Resource) -> bool:\\ndef _fetch(self, url: str, content_type: str) -> Result:  (no NewGrabber analogue)",
+      "rule_or_gap": "inventory row 41 pins is_cangrab; §4's round-1 Go-verbatim naming rule covers parameters/fields but is SILENT on method-name casing — the gap",
+      "verdict": "rulebook right",
+      "evidence": "Row 41 pins the Protocol spelling is_cangrab (mechanical snake of IsCanGrab); B's can_grab contradicts a confirmed inventory row. But two translators choosing differently (can_grab, month_year) with no rulebook authority shows the §4 gap; queued as an A-13 follow-up (flagged: second touch of §4 naming). fetch vs _fetch: same gap, both reachable from tests."
+    },
+    {
+      "unit": "github/grabber.py",
+      "a_quote": "from websearch.services.webfetch.local.grabber.client.fingerprint import FIREFOX_UA\\nrequest.headers[\"User-Agent\"] = FIREFOX_UA",
+      "b_quote": "FIREFOX_USER_AGENT = (\"Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0\")",
+      "rule_or_gap": "§0 FF-4 (pinned byte-exact literal) + §4 shared-types rule; inventory row 21",
+      "verdict": "rulebook right",
+      "evidence": "FF-4 pins 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0' exactly; judge s06 asserts it (fixedgo rewrote the shared constant the github grabber inherits via client.Firefox.Value(), grabber.go:74). B's is a real Firefox UA but NOT the pinned one — exact compare fails; defining it locally also breaks the single-constant ownership."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "(file at src/websearch/services/webfetch/local/grabber/github/grabber_test.py, next to the module)",
+      "b_quote": "(file named test_github_grabber.py, flat)",
+      "rule_or_gap": "§4 test-file row (*_test.go → *_test.py in place)",
+      "verdict": "rulebook right",
+      "evidence": "§4's collectability claim VERIFIED: pytest 9.1.1 default python_files = ['test_*.py', '*_test.py'] (probed) — both names collect with zero config. The in-place 1:1 mapping is the manifest's done-ness mechanism; B's flat rename was partly harness-imposed ('names of B's choosing') — discounted, the verdict rests on the 1:1 mapping rule."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "g = GithubGrabber(client=None, fallback=None)\\nassert g.is_cangrab(Resource(address=address)) == want",
+      "b_quote": "grabber = GithubGrabber(fallback=StubGrabber())\\nassert grabber.can_grab(Resource(address=address)) == expected",
+      "rule_or_gap": "inventory row 35 (TestIsCanGrab: construction with NO client/fallback)",
+      "verdict": "rulebook right",
+      "evidence": "Go grabber_test.go:28 constructs the zero value `g := &GithubGrabber{}` — the test pins that IsCanGrab touches neither field. B's constructor cannot express the zero value (client defaults, fallback required), so its test cannot pin nil-safety; same five rows verbatim otherwise (both, incl. %zz)."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "assert (\\n    request.headers[\"user-agent\"]\\n    == \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:158.0) Gecko/20100101 Firefox/158.0\"\\n)",
+      "b_quote": "assert request.headers[\"User-Agent\"] == FIREFOX_USER_AGENT",
+      "rule_or_gap": "§4 stale-UA correction note + §0 FF-4; inventory row 34",
+      "verdict": "rulebook right",
+      "evidence": "Go's assertion (grabber_test.go:72-74, 'websearch/1.0') is stale — the source sends client.Firefox.Value(); row 34 mandates asserting the FF-4 pinned literal for all four rows. A byte-exact per row 34; B asserts its own unpinned rv:133.0 constant, self-consistent with its wrong grabber but wrong against s06."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "if want_accept is not None:\\n    assert request.headers[\"accept\"] == want_accept\\nelse:\\n    assert request.headers.get(\"accept\") != \"application/vnd.github.v3+json\"",
+      "b_quote": "# httpx always sends a default Accept; we only override it for API calls.\\n\"*/*\",\\n...\\nassert request.headers.get(\"Accept\", \"\") == expected_accept",
+      "rule_or_gap": "inventory row 33 (prescribes A's exact form) + row 39 caveat (assert only explicitly-set values)",
+      "verdict": "rulebook right",
+      "evidence": "Row 33 mandates the vnd-iff-json-route form; B asserts the merged httpx DEFAULT ('*/*', probed present via client.get) — it bakes an SDK default into the suite (breaks if the default changes while the source contract holds) contra row 39's caveat. Both versions do catch an erroneous vnd on the file route. Queued: rows 33/39's merge rationale is wrong for send()-based ports (accept is None there — probed)."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "with pytest.raises(Exception, match=r\"^request failed with status 404$\"):\\n    g.fetch(\"http://testserver/x\", \"text/plain\")",
+      "b_quote": "with pytest.raises(httpx.HTTPStatusError):\\n    grabber._fetch(\"https://example.test\", \"text/plain\")",
+      "rule_or_gap": "inventory row 31 (pins A's exact raises line + message)",
+      "verdict": "rulebook right",
+      "evidence": "Go's not-found row asserts via wantErr + message path; the byte-exact 'request failed with status 404' is the invariant the judge pins (APP_ERROR_RE exact-compare). B asserts only httpx's exception type and loses the message pin entirely; A's breadth (Exception) is row-31-prescribed with a TODO(port) to narrow to the typed class. B also drops the id=name parametrization (cosmetic)."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "want_err = RuntimeError(\"boom\")\\n...\\nassert excinfo.value is want_err",
+      "b_quote": "raise httpx.ConnectError(\"boom\", request=request)\\n...\\nwith pytest.raises(httpx.ConnectError):",
+      "rule_or_gap": "inventory row 32 (identity IS the translation of errors.Is)",
+      "verdict": "rulebook right",
+      "evidence": "Go asserts errors.Is(err, wantErr) which holds only because grabber.go:79-82 returns the transport error UNWRAPPED. A's identity assert pins the no-wrapping contract; B's type-only assert would still pass if the port wrapped the exception (MockTransport propagates untouched, probed class survives), losing exactly the invariant the Go test exists for."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "# All four rows route to fetch, never to the fallback.\\nassert fallback.calls == 0",
+      "b_quote": "(no fallback-calls assertion in test_grab_routes_github_urls)",
+      "rule_or_gap": "inventory row 33 (last sentence: the fallback fake must record ZERO calls)",
+      "verdict": "rulebook right",
+      "evidence": "Row 33 explicitly mandates the zero-calls assert; minor coverage difference — B's four routing rows would pass even if the port also pinged the fallback (a Go-visible routing regression would go uncaught at unit level)."
+    },
+    {
+      "unit": "github/grabber_test.py",
+      "a_quote": "# PORT STATUS: confidence=high todos=1  (trailer matches the file's single TODO(port))",
+      "b_quote": "(no PORT STATUS trailer in any B file)",
+      "rule_or_gap": "§6 per-file obligations (status trailer + marker discipline); §3 markers",
+      "verdict": "rulebook right",
+      "evidence": "§6 requires the trailer on every translated file and reviewers reconcile it against actual TODO(port) counts. A's three files all carry accurate trailers; B carries none and uses no greppable markers anywhere — its silent judgment calls (e.g. inferring the output schema) are exactly what §3's markers exist to surface. Applies to all three B files."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "server.add_request_handler(\"tools/call\", mcp.types.CallToolRequestParams, call_tool)  ... input_schema=INPUT_SCHEMA, output_schema=output_schema()",
+      "b_quote": "@server.tool(name=TOOL_NAME, description=description(AGENT_NAME, month_year()))\\nfrom mcp.server.mcpserver import MCPServer\\nfrom pydantic import BaseModel",
+      "rule_or_gap": "§1 MCP row (low-level Server MANDATED; FastMCP-style auto-schema-from-hints and pydantic wire models BANNED) + rows 88/90/96",
+      "verdict": "rulebook right",
+      "evidence": "B violates two explicit §1 bans: MCPServer.tool with return-annotation schema inference (pydantic cannot emit the pinned s01 root: type [\"array\",\"null\"] union, additionalProperties:false, byte-exact descriptions — row 96) and pydantic DTOs for wire shapes. B's required `query` field also rejects missing/unknown args server-side, contra row 90 (raw dict dispatch; missing query must reach the service's pinned 'query must not be empty'). But §1's own '@list_tools/@call_tool handlers' wording names a decorator API absent from the pinned mcp 2.3.0 (probed: no such attributes) — queued amendment."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "limit = 50\\nif input.limit > 0:\\n    limit = input.limit",
+      "b_quote": "web_search_input = WebSearchInput(query=input.query, limit=SEARCH_LIMIT)  # SEARCH_LIMIT = 50; no limit argument exists at all",
+      "rule_or_gap": "§0 FF-2 (limit honored, 50 default only when absent) + conflicts C-4 correction; inventory rows 88/94",
+      "verdict": "rulebook right",
+      "evidence": "FF-2 is a sanctioned fix: judge s18 passes limit:2 and asserts max_results:2 reaches the request body; fixedgo.py:43-49 spells limit := 50; if input.Limit > 0 (0/negative → 50 — C-4). B re-introduces the exact pre-fix bug (hardcoded 50, no limit parameter in the schema or handler); s18 fails on B."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "from websearch.tools.websearch.prompt import NAME, description\\n... name=NAME, description=description(AGENT_NAME, get_month_year()),",
+      "b_quote": "TOOL_NAME = \"web_search\"\\ndef description(agent: str, month_year: str) -> str:\\n    return (f\"Search the web on behalf of {agent} and return the top results. …\")",
+      "rule_or_gap": "§4 shared-types rule + inventory row 89 (byte-exact template, NAME='WebSearch')",
+      "verdict": "rulebook right",
+      "evidence": "prompt.go: Name = \"WebSearch\" (B renames to 'web_search' — judge s01 pins the listed name); Description is a ~35-line template pinned byte-exact by the judge (harness.py:80-108 WEBSEARCH_DESCRIPTION + MONTH_YEAR_RE on raw text). B invents a one-line description — fails s01's byte compare and the month-year check would pass only by luck of its parameter name. B's local def also violates §4's owner-module rule."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "output = await asyncio.to_thread(handler, tool_input, web_search_service)  # service.search is sync",
+      "b_quote": "class WebSearchService(Protocol):\\n    async def search(self, input: WebSearchInput) -> WebSearchOutput: ...\\n... return await _handle(Input(query=query), web_search_service)",
+      "rule_or_gap": "§1 async-model row (asyncio ONLY in the server layer; services stay SYNCHRONOUS)",
+      "verdict": "rulebook right",
+      "evidence": "Go services are plain sync functions (service.go Search); §1 keeps them sync for structure and loop-free unit-testability, with handlers bridging via to_thread. B makes the whole service contract async — every ported Go service would need an event loop, inverting the sanctioned architecture; B also runs the handler directly in the async context (no to_thread), so sync ports would block the loop."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "except Exception as exc:\\n    return mcp.types.CallToolResult(\\n        content=[mcp.types.TextContent(type=\"text\", text=str(exc))], is_error=True)",
+      "b_quote": "(no catch — the handler raises; conversion left to the MCPServer layer)",
+      "rule_or_gap": "inventory row 91 (NIL-SDK) prescribes a BARE raise as primary with catch-and-build only as contingency — the row's primary is WRONG for the pinned SDK",
+      "verdict": "rulebook right",
+      "evidence": "Probed from mcp 2.3.0 source: a raising low-level handler becomes a JSON-RPC error response (jsonrpc_dispatcher.py:771-782 writes ErrorData, never an isError CallToolResult) — a bare raise never delivers the isError text judge s04/s14 exact-compare; and on B's (banned) MCPServer layer a non-ToolError crash renders as 'Error executing tool <name>' with 'nothing from the original' reaching the client (mcpserver/exceptions.py:61-71). A followed the row's own contingency with probe evidence + TODO(port); B loses byte-exactness on every layer. Row 91's primary queued for promotion of the contingency."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "previous_list = server.get_request_handler(\"tools/list\")\\n... tools = [*previous.tools, *tools]  # RULEBOOK-SILENT admission",
+      "b_quote": "@server.tool(name=TOOL_NAME, ...)  # MCPServer accumulates multiple tools natively",
+      "rule_or_gap": "GAP (A's own RULEBOOK-SILENT admission): neither §1 nor rows 90/91 nor the main.go row decides multi-tool handler composition on the low-level Server",
+      "verdict": "both defensible",
+      "evidence": "Probed: mcp 2.3.0 add_request_handler REPLACES any existing handler for the same method (lowlevel/server.py:484-507) — Go's mcp.AddTool accumulates, so register_web_search + register_web_fetch clobber each other unless something composes. A's compose-with-previous is a reasonable sanctioned-layer answer but is order-dependent and unpinned (the webfetch twin must compose identically — nothing obliges it); B's accumulation works only on the banned layer. The rulebook must decide this — queued."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "return mcp.types.CallToolResult(\\n    content=[mcp.types.TextContent(type=\"text\", text=json.dumps(output))],\\n    structured_content=output)",
+      "b_quote": "async def web_search(query: str) -> Output:\\n    return await _handle(...)  # SDK serializes the pydantic model",
+      "rule_or_gap": "rows 91/96 + judge norm_call (harness.py:303-347)",
+      "verdict": "both defensible",
+      "evidence": "Judge norm_call drops text whenever structuredContent is present (or parseable from the text block) and compares the structured dict order-insensitively; content_blocks (block-type list) is compared — Go's go-sdk emits structured + a text block. A reproduces that shape explicitly; B's decorator path also emits structured + text on its (banned) layer, but cannot be verified on the sanctioned layer. Shape-wise neither is wrong; the SDK-layer difference is already rowed above."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "def get_month_year() -> str:\\n    return datetime.now().strftime(\"%b %Y\")",
+      "b_quote": "def month_year() -> str:\\n    return datetime.now().strftime(\"%b %Y\")",
+      "rule_or_gap": "§2 time.Now canonical mapping; GAP: method-name casing undecided (§4 naming covers params/fields only)",
+      "verdict": "both defensible",
+      "evidence": "Bodies are identical and match the canonical mapping (live %b %Y, C-locale-safe per row 93 probes); both bake the value once at registration. The only difference is the name (get_month_year vs month_year) — the same §4 gap as is_cangrab/can_grab; queued once as an A-13 follow-up (flagged second touch of §4)."
+    },
+    {
+      "unit": "tools/websearch/websearch.py",
+      "a_quote": "def output_schema() -> dict[str, Any]:\\n    try:\\n        return OUTPUT_SCHEMA\\n    except Exception:\\n        return {}",
+      "b_quote": "(no output_schema function — the decorator infers the schema)",
+      "rule_or_gap": "inventory row 96 (outputSchema with generation-error fallback → {}) + §0 structure-preserving",
+      "verdict": "rulebook right",
+      "evidence": "Row 96 pins outputSchema() including websearch.go:36-38's empty-schema fallback; a dict literal cannot fail so A's try/except is vestigial (A's own comment admits it keeps the zero-value shape per the twin row). B's omission is part of its banned auto-schema choice (rowed above); minor on its own."
+    }
+  ],
+  "verdict_summary": "27 difference rows across the three units (10 grabber, 8 grabber_test, 9 websearch): rulebook right 23, native right 1, both defensible 3, both wrong 0. Both outputs are ruff-formatted (verified with the venv's ruff: 6 files already formatted) — no style discounts applied. The verdict distribution is lopsided toward the rulebook because B is a native baseline, not a parity attempt: it re-introduces two sanctioned fixes as bugs (FF-2 hardcoded limit, FF-4 unpinned UA), invents the tool name/description, uses the banned MCPServer+pydantic layer, and diverges from Go on regex anchors (trailing-newline URLs route to the API), host-case/port matching, 2xx handling, and byte-exact error strings. The rulebook won every one of those on Go-observable or judge-pinned evidence — those wins indict nothing. The single native-right row (urlsplit ValueError guard) and the three both-defensible rows (handler composition, structured/text block shape, month_year naming) are where the rulebook/inventory had no answer. 7 amendment-queue entries: 1 native-right consequence (row 29 ValueError guard), 1 SDK-behavior correction (row 91 bare-raise primary is wrong for mcp 2.3.0), 1 stale §1 API citation, 1 undecided multi-tool composition, 1 §2 pinned-string omission, 1 §2 test-rationale correction (rows 33/39 header-merge scope), 1 §4 naming case-split. FIVE of the seven touch sections/rows amended in round 1 (§1, §2 error row, §4 naming, github-grabber row 29, test rows 33/39) — each flagged in its entry; that concentration is itself a stop-signal datum for the human. Two process observations outside the queue: A's units import sibling modules that exist in neither workspace (the round-1 DEV-006 pattern recurring — A's code cannot import until the manifest's other units land, so its trailers' confidence=high is unverifiable in-workspace), and B silently exercised the banned MCPServer path while §1's decorator wording gave it cover — the cheapest fix is the queued §1 wording correction."
+}

@@ -1,0 +1,14 @@
+main.go	github.com/Stampoo/websearch/internal/services/network	L11
+main.go	github.com/Stampoo/websearch/internal/services/webfetch/cloud	L12
+main.go	github.com/Stampoo/websearch/internal/services/webfetch/complex	L13
+main.go	github.com/Stampoo/websearch/internal/services/webfetch/local	L14
+main.go	github.com/Stampoo/websearch/internal/services/websearch/cloud	L15
+main.go	github.com/Stampoo/websearch/internal/tools/webfetch	L16
+main.go	github.com/Stampoo/websearch/internal/tools/websearch	L17
+internal/services/webfetch/cloud/service.go	github.com/Stampoo/websearch/internal/services/webfetch	L13
+internal/services/webfetch/complex/service.go	github.com/Stampoo/websearch/internal/services/webfetch	L6
+internal/services/webfetch/local/grabber/client/grabber.go	github.com/Stampoo/websearch/internal/services/webfetch/local/grabber	L9
+internal/services/webfetch/local/grabber/github/grabber.go	github.com/Stampoo/websearch/internal/services/webfetch/local/grabber	L12
+internal/services/webfetch/local/grabber/github/grabber.go	github.com/Stampoo/websearch/internal/services/webfetch/local/grabber/client	L13
+internal/services/webfetch/local/grabber/github/grabber_test.go	github.com/Stampoo/websearch/internal/services/webfetch/local/grabber	L13
+internal/services/websearch/cloud/service.go	github.com/Stampoo/websearch/internal/services/websearch	L11
