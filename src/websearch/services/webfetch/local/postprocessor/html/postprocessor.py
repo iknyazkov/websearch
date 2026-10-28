@@ -170,7 +170,8 @@ def find_main_content(soup: BeautifulSoup) -> Tag:
     # (soup.body is None for '', 'hello world', '<p>x</p>' — probed). The soup
     # OBJECT is the prescribed stand-in for both the best-div scan and the
     # final fallback (row 51, pinned per A-12).
-    # TODO(port): body-less documents diverge from Go's synthesized body —
+    # Body-less documents (closed post-parity 2026-10-28,
+    # document-and-close): diverge from Go's synthesized body —
     # a whole-document root narrows best-div to one child where the soup
     # stand-in emits both divs' content; branch is Go-unreachable, kept.
     root = soup.body if soup.body is not None else soup
@@ -293,7 +294,8 @@ def _lookup(label: str) -> str | None:
         # A Lookup failure does NOT abort the prescan (charset.go:194-209):
         # the caller keeps scanning the next tag (row 49 / A-9a).
         return None
-    # TODO(port): the WHATWG label table is a superset of Python codecs
+    # WHATWG label table (closed post-parity 2026-10-28,
+    # document-and-close): a superset of Python codecs
     # aliases — a WHATWG-only label (Go decodes) misses here and the scan
     # falls through to the heuristic; conversely a label Python accepts but
     # WHATWG rejects (e.g. 'iso-8859-1', which WHATWG remaps to
@@ -373,7 +375,8 @@ def _prescan(content: bytes) -> str | None:
 
         if resolved is not None:
             if resolved.startswith("utf-16"):
-                # TODO(port): utf-16-prefix label remap (charset.go:205-208):
+                # utf-16-prefix label remap (charset.go:205-208; implemented,
+                # closed post-parity 2026-10-28):
                 # a meta-declared utf-16 label decodes as utf-8 in Go
                 # (e=Nop). Implemented faithfully but unreachable in the
                 # fixtures — unpinned by probes.
@@ -562,4 +565,4 @@ def _skip_raw_text(content: bytes, i: int, tag: str) -> int | None:
         i = after
 
 
-# PORT STATUS: confidence=high todos=3
+# PORT STATUS: confidence=high todos=0

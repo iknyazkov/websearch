@@ -61,6 +61,24 @@ GITHUB_ISSUE_REGEX = re.compile(
 # `%zz` reject, query `?q=%zz` accepts, `%2F` accepts — Go-exact.
 _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})", re.ASCII)
 
+# Go net/url rejects ANY ASCII control byte in a URL (stringContainsCTLByte:
+# b < ' ' || b == 0x7f, checked on the raw string BEFORE parsing), while
+# urlsplit STRIPS \t/\r/\n (bpo-43882) and passes every other control byte
+# through — the full-set mirror (post-parity fixes F4+F4b, widened after
+# adversarial review, 2026-10-28; probed: \x0b/\x0c/\x7f addresses are
+# False like Go, a %09-encoded tab stays True in both engines).
+_CTL_BYTE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+class RequestFailedError(Exception):
+    """Typed error for the pinned ``request failed with status {code}``
+    string (grabber.go:86, fmt.Errorf) — §2 pinned-string convention
+    (row 91): one module-level class per pinned message subject, deriving
+    Exception.
+    Post-parity fix F5, 2026-10-28; the wire message is byte-exact either
+    way — the class only narrows what callers/tests can catch.
+    """
+
 
 class GithubGrabber:
     """Grabber routing github.com URLs to the raw/api endpoints.
@@ -105,11 +123,13 @@ class GithubGrabber:
         except ValueError:
             return False
         _, _, hostport = parts.netloc.rpartition("@")
-        # TODO(port): residual control-char divergence — urlsplit STRIPS
-        # ASCII \t/\r/\n before parsing (bpo-43882) while Go url.Parse
-        # REJECTS them ("net/url: invalid control character in URL"), so a
-        # \n-laced address is is_can_grab TRUE here but FALSE in Go;
-        # unjudged (row 29, github host-check residual).
+        # Control chars: Go url.Parse rejects the WHOLE URL on any ASCII
+        # control byte ("net/url: invalid control character in URL") while
+        # urlsplit strips \t/\r/\n and passes the rest — guard BEFORE the
+        # host check so a control-laced address is False like Go
+        # (post-parity fixes F4+F4b, 2026-10-28; row 29 residual).
+        if _CTL_BYTE.search(address):
+            return False
         return hostport in ("github.com", "www.github.com")
 
     def grab(self, resource: Resource) -> Result:
@@ -174,9 +194,10 @@ class GithubGrabber:
             # pinned. The Go io.ReadAll error branch (:89-92) evaporates:
             # resp.read() already has the bytes (row 28).
             if resp.status_code != httpx.codes.OK:
-                raise ValueError(f"request failed with status {resp.status_code}")
+                raise RequestFailedError(f"request failed with status {resp.status_code}")
 
-            # BUG(port): the github path has NO size cap — Go's
+            # Spec-matching quirk (closed post-parity 2026-10-28,
+            # document-and-close): the github path has NO size cap — Go's
             # io.ReadAll(resp.Body) at grabber.go:89 is unbounded (the 5 MB
             # maxBodySize exists ONLY in client/grabber.go:13). Repro: a
             # >5 MB raw.githubusercontent.com/api.github.com body is read
@@ -208,4 +229,4 @@ def new_grabber(client: httpx.Client, fallback: ContentGrabber) -> ContentGrabbe
     return GithubGrabber(client=client, fallback=fallback)
 
 
-# PORT STATUS: confidence=high todos=2
+# PORT STATUS: confidence=high todos=0

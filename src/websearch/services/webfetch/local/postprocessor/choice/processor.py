@@ -52,7 +52,8 @@ class ChoicePostprocessor:
             # data: bytes (FF-5), so there is no reader and no read error to
             # map — row 46 sanctions deleting the branch, not porting a dead
             # try/except. Plain branch: bytes straight to text.
-            # TODO(port): Go string(bytes) keeps invalid bytes and the mcp
+            # U+FFFD granularity (closed post-parity 2026-10-28,
+            # document-and-close): Go string(bytes) keeps invalid bytes and the mcp
             # SDK's JSON marshal replaces EACH invalid byte with U+FFFD,
             # while Python's errors="replace" emits one U+FFFD per maximal
             # bad subsequence — differs only on invalid-UTF-8 plaintext;
@@ -77,4 +78,4 @@ def new(html_post_processor: HTMLPostprocessor) -> postprocessor.Postprocessor:
     return ChoicePostprocessor(html_post_processor=html_post_processor)
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

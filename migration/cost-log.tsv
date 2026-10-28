@@ -10,3 +10,4 @@ step	timestamp	wall_clock_min	tokens	subagents	model
 2r	2026-10-27T20:02Z	46	725117	7	glm-5.3(all-agents;DEV-007-resolution)
 3	2026-10-28T13:34Z	~180	803233+unknown	145 attempts (127 full-topology + 18 impl-only)	glm-5.3(all-agents;DEV-007-resolution)
 5-6	2026-10-28T14:17Z	~15	unknown(direct-runs;no-subagents)	0	glm-5.3(main-loop)
+7	2026-10-28T15:30Z	~95	unknown(direct-edits)+1-subagent	1	glm-5.3(main)+glm-5.3(reviewer)

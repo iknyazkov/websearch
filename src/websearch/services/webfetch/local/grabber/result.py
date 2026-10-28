@@ -30,8 +30,9 @@ class Result:
       keys LOWERCASED at construction — the choice processor's
       ``parameters.get("content-type", "")`` lookup relies on it (FF-6 row).
       Both producers lowercase keys at construction: the client grabber
-      builds ``{k.lower(): v for k, v in resp.headers.items()}`` from
-      the upstream headers (FF-5 row), while the github fetch synthesizes
+      flattens ``resp.headers.multi_items()`` with ``setdefault(k.lower(),
+      v)`` — first value wins, like Go's Header.Get (FF-5 row + post-parity
+      fix F3, 2026-10-28) — while the github fetch synthesizes
       a fresh single-entry dict ``{"content-type": contentType}`` — the
       upstream response headers are discarded entirely (github fetch
       rows); the consumer is local/service.py's fetch, which hands
@@ -40,12 +41,11 @@ class Result:
 
     data: bytes
     parameters: dict[str, str]
-    # TODO(port): flattening http.Header's map[string][]string to
-    # dict[str, str] keeps ONE value per key where Go's Header.Get returns
-    # the FIRST of a repeated header — a dict comprehension over httpx
-    # headers would keep the LAST. Only Content-Type is ever read and no
-    # fixture repeats it; revisit if a repeated header ever appears
-    # (inventory row for result.go, recorded judgment call).
+    # Header flattening — RESOLVED (post-parity fix F3, 2026-10-28): the
+    # client producer builds via multi_items() + setdefault, so a repeated
+    # header keeps its FIRST value exactly like Go's Header.Get (httpx
+    # items() would comma-join, a plain comprehension would keep the LAST).
+    # Only Content-Type is ever read and no fixture repeats headers.
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

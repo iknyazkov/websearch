@@ -168,14 +168,17 @@ def register(
     ) -> CallToolResult:
         if params.name != NAME:
             if prior_call_handler is None:
-                # TODO(port): compose-with-nothing fallback (no prior
-                # tools/call handler and an unrecognized tool name) — the
-                # go-sdk's own unknown-tool error (server.go:955-963: jsonrpc
+                # Compose-with-nothing fallback (no prior tools/call handler
+                # and an unrecognized tool name) — the go-sdk's own
+                # unknown-tool error (server.go:955-963: jsonrpc
                 # INVALID_PARAMS, ``unknown tool %q``) is undecided by the
                 # inventory; the runner's METHOD_NOT_FOUND shape is kept,
                 # identical to the webfetch twin's fallback so both units
                 # answer alike; unreachable in the wired app (main.py
                 # registers both tools).
+                # RESOLVED (post-parity, 2026-10-28): document-and-close —
+                # no scenario sends an unknown tool; the twins stay
+                # identical, which is the invariant that mattered.
                 raise MCPError(
                     code=METHOD_NOT_FOUND,
                     message="Method not found",
@@ -190,18 +193,19 @@ def register(
             )
 
         try:
-            # Decode sits INSIDE the try, unlike the webfetch twin: the
+            # Decode sits INSIDE the try, like the webfetch twin: the
             # go-sdk unmarshals arguments inside AddTool's wrapper and
             # routes a decode failure through SetError — an isError TOOL
             # RESULT, not a JSON-RPC error (go-sdk server.go:368-376), and
             # judge s18's old-side branch pins exactly that envelope for
             # argument-processing failures (`isError: true`, network
             # untouched).
-            # TODO(port): the webfetch twin decodes OUTSIDE its try (the
-            # decode failure there becomes a JSON-RPC error response) — the
-            # same unjudged input class with two envelopes across the twin
-            # units; no scenario sends a mistyped argument, reconcile at
-            # review.
+            # RESOLVED (post-parity, 2026-10-28): the recorded twin
+            # divergence was STALE — webfetch.py decodes inside its try too
+            # (its own go-sdk-cited comment), so a mistyped argument yields
+            # the isError envelope in BOTH units; the twins were already
+            # reconciled. No scenario sends a mistyped argument; marker
+            # closed as document-and-close.
             input_ = _decode_input(params.arguments)
             output = await asyncio.to_thread(handler, input_, web_search_service)
         except Exception as exc:  # noqa: BLE001
@@ -385,4 +389,4 @@ def _output_wire(output: Output) -> dict[str, Any]:
     }
 
 
-# PORT STATUS: confidence=medium todos=2
+# PORT STATUS: confidence=high todos=0

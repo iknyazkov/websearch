@@ -525,3 +525,45 @@ inspector #5 EXTENDS A-13 rather than conflicting with it.
 ## A-21 (queued 2026-10-28T14:17Z, Step-6 judge finding; in-code fix applied at gate)
 
 Rule: any ported request whose Go twin sets NO User-Agent must carry the explicit header "User-Agent: Go-http-client/1.1" — Go net/http stamps this default at write time (net/http Request.write defaultUserAgent); httpx bare requests (httpx.Request + client.send) receive NO client defaults, so the default must be ported explicitly at each such site. Sites: websearch/cloud/service.py make_request (Go service.go:75-93), webfetch/cloud/service.py make_request (Go service.go:82-101). Gap: no prior row covered the implicit default; judge s02/s03 first-pass divergences (parity-2026-10-28.json pre-fix run) exposed it. Found by: Step-6 parity judge; applied in-code by orchestrator; rulebook wording is the human's to apply (suggest §1 httpx row or §2).
+
+## A-22 (queued 2026-10-28T15:20Z, Step-7 post-parity burndown + adversarial review findings 1/5/7)
+
+Four items; wording is the human's to apply.
+
+**(a) Recurring document-and-close patterns — three classes each closed with
+near-identical wording in 2 files; per the post-parity skill this recurrence is
+a rulebook indictment, so each deserves one canonical row instead of two
+scattered per-file judgments:**
+
+1. U+FFFD granularity (Go string(bytes) substitutes per invalid BYTE; Python
+   errors="replace" substitutes per maximal bad SUBSEQUENCE) — sites:
+   webfetch/cloud/service.py (error-body decode), postprocessor/choice/processor.py
+   (plain-text branch). Diverges only on invalid-UTF-8 input; no fixture has any.
+2. url.Parse-vs-urlsplit strictness on env-supplied base URLs (Go rejects control
+   chars / invalid %-escapes, urlsplit accepts; error class transport-normalized
+   either way) — sites: webfetch/cloud/service.py _join_url_path (row 8),
+   websearch/cloud/service.py _join_url_path (row 68). Judge never sets a base.
+3. Lenient-decode edges (Go encoding/json fails the WHOLE decode on a mistyped
+   field / non-object body / trailing bytes; the ports' .get-based parse accepts)
+   — sites: webfetch/cloud/output.py (row 5 + A-6), websearch/cloud/output.py
+   (row 62). Fixtures only send well-formed bodies.
+
+**(b) F1b redirect accounting (review finding 1):** Go defaultCheckRedirect errors
+once 10 requests exist → exactly 10 requests on an infinite chain; httpx raises
+only when len(history) > max_redirects → the byte-exact pin is max_redirects=9,
+NOT 10 (probed both engines, 2026-10-28). Candidate §1 httpx-construction row so
+the next port doesn't re-derive it.
+
+**(c) Stale rulebook cross-references:** §0 kept-quirks table and §3 cite marker
+sites that Step 7 retired (e.g. local/service.py "BUG(port): Go byte semantics",
+github/grabber.py unbounded-read BUG). The behaviors are unchanged and now
+documented inline as closed quirks; the rulebook's marker-site citations need a
+post-burndown sweep (human's edit).
+
+**(d) Typed-exception asymmetry (review finding 7, observation):** github
+grabber's pinned "request failed with status {code}" now raises RequestFailedError
+(§2 row 91 convention) while the client grabber's pinned "HTTP %d: %s" still
+raises bare ValueError — same construct, two conventions. Extending the typed
+class to the client grabber would be a NEW behavior-adjacent change beyond
+Step-7's classified markers, so it was NOT applied; human decides (a one-class
+change + parity re-run if wanted).

@@ -207,7 +207,8 @@ def from_response(text: str) -> Output:
     return Output(results=results)
 
 
-# TODO(port): lenient-parse edges (row 62) — Go fails the WHOLE decode on a
+# Lenient-parse edges (row 62; closed post-parity 2026-10-28,
+# document-and-close) — Go fails the WHOLE decode on a
 # mistyped field while this parse accepts: a non-string title/url/snippet
 # coerces to "", and a NON-NULL non-dict results element ("str", 5, [1])
 # maps to the zero row (probed 2026-10-27: {"results":["str"]} and
@@ -228,4 +229,4 @@ def from_response(text: str) -> Output:
 # VALUE could differ. No fixture mistypes a field, so the strictness
 # divergence stays a flagged edge.
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

@@ -102,12 +102,14 @@ def register(server: Server[Any], web_fetch_service: WebFetchService) -> None:
     ) -> CallToolResult:
         if params.name != NAME:
             if prior_call_handler is None:
-                # TODO(port): compose-with-nothing fallback (no prior tools/call
-                # handler and an unrecognized tool name) mirrors the bare
-                # Server's runner behavior (runner.py:197 METHOD_NOT_FOUND) —
-                # the go-sdk's own unknown-tool error text for this residual
-                # path is undecided by the inventory and unreachable in the
-                # wired app (main.py registers both tools).
+                # Compose-with-nothing fallback (no prior tools/call handler
+                # and an unrecognized tool name) mirrors the bare Server's
+                # runner behavior (runner.py:197 METHOD_NOT_FOUND).
+                # RESOLVED (post-parity, 2026-10-28): document-and-close —
+                # the go-sdk's own unknown-tool text for this residual path
+                # is undecided by the inventory; the runner shape is kept,
+                # identical to the websearch twin; unreachable in the wired
+                # app (main.py registers both tools).
                 raise MCPError(
                     code=METHOD_NOT_FOUND,
                     message="Method not found",
@@ -250,4 +252,4 @@ def _output_wire(output: Output) -> dict[str, Any]:
     }
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

@@ -89,7 +89,8 @@ def from_response(data: object) -> Output:
     )
 
 
-# TODO(port): strictness edge (inventory row 5) — Go fails the WHOLE decode on
+# Strictness edge (inventory row 5; closed post-parity 2026-10-28,
+# document-and-close) — Go fails the WHOLE decode on
 # a mistyped field (e.g. "title" as a number) while this lenient .get parse
 # silently accepts the zero value; sub-case: a JSON bool for "length" is
 # accepted as True (bool subclasses int), not the zero value. Further
@@ -105,17 +106,20 @@ def from_response(data: object) -> Output:
 # divergence — publicly reachable, unjudged (fixtures send lowercase keys
 # only). Fixtures never mistype a field, so the strictness divergence stays
 # a flagged edge rather than a mirrored failure.
-# TODO(port): first-value semantics (A-6) — Go's json.Decoder.Decode reads the
-# FIRST JSON value and IGNORES trailing bytes (stream.go:46), so a 200 body of
+# First-value semantics (A-6; closed post-parity 2026-10-28,
+# document-and-close) — Go's json.Decoder.Decode reads the
+# FIRST JSON value and IGNORES trailing bytes (encoding/json Decode; the
+# call site is cloud/service.go:113), so a 200 body of
 # {"url":"","title":"","content":{...}}garbage DECODES in Go while the caller's
 # resp.json() raises "Extra data". Row 5 keeps from_response(dict) +
 # resp.json(); the success/failure flip is publicly unreachable (the complex
 # service swallows every cloud error via the local fallback).
-# TODO(port): top-level body SHAPE is absent from row 5 (its formula assumes
+# Top-level body SHAPE (closed post-parity 2026-10-28,
+# document-and-close): absent from row 5 (its formula assumes
 # an object) — resolved per §5 by the twin precedent the inventory DID decide
 # (websearch row 62: null -> zero Output; non-object -> the Go
 # UnmarshalTypeError message above) plus row 5's own null clause; flagged so
 # the inventory can own the site. Unjudged either way: no scenario serves a
 # non-object 200.
 
-# PORT STATUS: confidence=high todos=3
+# PORT STATUS: confidence=high todos=0

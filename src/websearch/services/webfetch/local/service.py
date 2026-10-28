@@ -90,7 +90,7 @@ class LocalWebFetchService:
                 # length of the text content" claim (tools/webfetch/
                 # output.go:5) is false in Go too — that text ports
                 # verbatim; only the VALUE stays bytes.
-                length=len(value.encode("utf-8")),  # BUG(port): Go byte semantics
+                length=len(value.encode("utf-8")),  # Go byte semantics — spec-matching quirk, closed post-parity 2026-10-28
             ),
         )
 
@@ -122,4 +122,4 @@ def new_web_fetch_service(client: httpx.Client) -> WebFetchService:
     return LocalWebFetchService(client=client)
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

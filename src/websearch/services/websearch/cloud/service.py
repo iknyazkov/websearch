@@ -114,7 +114,8 @@ def _join_url_path(base_url: str, *elements: str) -> str:
     if joined.startswith("//"):
         # path.Clean collapses a leading double slash; normpath preserves it.
         joined = "/" + joined.lstrip("/")
-    # TODO(port): Go url.Parse rejects control chars / invalid %-escapes in
+    # RESOLVED (post-parity, 2026-10-28): document-and-close — Go url.Parse
+    # rejects control chars / invalid %-escapes in
     # the base (parse error returned at service.go:41-43) while urlsplit
     # accepts both — env-supplied base only, judge never sets one, and the
     # error class is transport-normalized either way; conservative urlsplit
@@ -254,4 +255,4 @@ def new(cfg: Config) -> websearch_service.WebSearchService:
     return CloudWebSearchService(cfg=cfg)
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0

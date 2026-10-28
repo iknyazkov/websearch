@@ -39,7 +39,10 @@ Mapping decisions, per row:
 import httpx
 import pytest
 
-from websearch.services.webfetch.local.grabber.github.grabber import GithubGrabber
+from websearch.services.webfetch.local.grabber.github.grabber import (
+    GithubGrabber,
+    RequestFailedError,
+)
 from websearch.services.webfetch.local.grabber.resource import Resource
 from websearch.services.webfetch.local.grabber.result import Result
 
@@ -189,10 +192,9 @@ def test_fetch(name: str, status: int, body: str, want_err: bool) -> None:
     if want_err:
         # Go :122-127 — err != nil only; the port pins the byte-exact
         # message (grabber.go:86; APP_ERROR_RE pins "request failed with
-        # status"). TODO(port): narrow the exception class to the ported
-        # grabber's typed error once service.py defines one (row 31) —
-        # match-on-message is the invariant part.
-        with pytest.raises(Exception, match=rf"^request failed with status {status}$"):
+        # status"). The class is the §2 typed error (post-parity fix F5,
+        # 2026-10-28): match-on-message AND match-on-type.
+        with pytest.raises(RequestFailedError, match=rf"^request failed with status {status}$"):
             g.fetch("http://testserver/x", "text/plain")
         return
 
@@ -253,4 +255,4 @@ class FakeGrabber:
         return self.result
 
 
-# PORT STATUS: confidence=high todos=1
+# PORT STATUS: confidence=high todos=0
