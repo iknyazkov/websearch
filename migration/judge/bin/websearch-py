@@ -1,4 +1,0 @@
-#!/bin/sh
-# Parity-judge entry for the Python port — single executable, spawned with
-# no args; stdio JSON-RPC per the MCP server contract.
-exec /Users/iknyazkov/Documents/websearch/.venv/bin/python -m websearch.main
