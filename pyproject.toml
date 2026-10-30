@@ -4,12 +4,19 @@ version = "0.0.1"
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0",
-    # [socks] = the socksio extra: httpx raises ImportError at Client
-    # construction for socks5:// values without it (probed 0.28.1).
-    # SOCKS_PROXY's scheme set is socks5/socks5h only (enforced in
-    # network/client.py), so socksio backs every configured proxy — a
-    # dependency, not an optional code path.
-    "httpx[socks]>=0.28",
+    # httpx2, not httpx: 0.28.1's SOCKS transport applies NO deadline
+    # during the socksio handshake — a silent socks5 peer hung a request
+    # carrying an explicit per-request Timeout(8, connect=3) past 45 s
+    # (probed 2026-10-30), the exact silent-infinite-hang shape the
+    # bounded timeout exists to kill — while httpx2 2.16.0 raised
+    # ReadTimeout at 8.1 s in the same probe. Redirect parity holds:
+    # max_redirects=9 issues exactly 10 requests on an infinite 302
+    # chain under httpx2 (probed), matching httpx 0.28 and Go.
+    # [socks] = the socksio extra: Client construction raises ImportError
+    # for socks5:// values without it. SOCKS_PROXY's scheme set is
+    # socks5/socks5h only (enforced in network/client.py), so socksio
+    # backs every configured proxy — a dependency, not an optional path.
+    "httpx2[socks]>=2.16",
     "beautifulsoup4>=4.12",
 ]
 

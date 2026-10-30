@@ -18,6 +18,7 @@ from __future__ import annotations
 import socket
 import threading
 
+import httpx2 as httpx
 import pytest
 
 from websearch.services.network.client import new_client
@@ -226,6 +227,22 @@ def test_empty_proxy_value_egresses_direct() -> None:
     assert response.status_code == 200
     assert response.text == "hi"
     assert origin.request_line == b"GET /hello?x=1 HTTP/1.1"
+
+
+def test_client_carries_a_bounded_timeout() -> None:
+    """``new_client`` pins a deadline: 60 s overall, 10 s connect.
+
+    Supersedes Go-parity ``timeout=None`` (2026-10-30): an unreachable
+    egress endpoint through a bad proxy hung tool calls forever with no
+    error — the no-deadline client turned an outage into a silent infinite
+    hang. Asserted as equality on the full Timeout config so any future
+    value change is a deliberate edit of this test, not drift.
+    """
+    client = new_client("")
+    timeout = client.timeout
+    client.close()
+
+    assert timeout == httpx.Timeout(60.0, connect=10.0)
 
 
 @pytest.mark.parametrize(

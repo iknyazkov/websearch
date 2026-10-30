@@ -33,7 +33,7 @@ import asyncio
 import os
 from typing import Any
 
-import httpx
+import httpx2 as httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 

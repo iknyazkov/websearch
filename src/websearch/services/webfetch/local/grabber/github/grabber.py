@@ -25,7 +25,7 @@ followed verbatim:
 import re
 from urllib.parse import urlsplit
 
-import httpx
+import httpx2 as httpx
 
 from websearch.services.webfetch.local.grabber.client import fingerprint
 from websearch.services.webfetch.local.grabber.grabber import ContentGrabber

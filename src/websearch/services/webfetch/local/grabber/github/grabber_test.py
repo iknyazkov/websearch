@@ -36,7 +36,7 @@ Mapping decisions, per row:
   checked structurally at the ``fallback=`` argument.
 """
 
-import httpx
+import httpx2 as httpx
 import pytest
 
 from websearch.services.webfetch.local.grabber.github.grabber import (

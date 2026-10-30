@@ -14,7 +14,7 @@ import posixpath
 from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
-import httpx
+import httpx2 as httpx
 
 from websearch.services.network import client as network_client
 from websearch.services.websearch import service as websearch_service

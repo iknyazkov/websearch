@@ -22,7 +22,7 @@ Every decision in this module is pinned by this file's inventory rows
   BYTES — ``len(value.encode("utf-8"))``, never ``len(value)``.
 """
 
-import httpx
+import httpx2 as httpx
 
 from websearch.services.webfetch.local.grabber.client import grabber as client
 from websearch.services.webfetch.local.grabber.github import grabber as github

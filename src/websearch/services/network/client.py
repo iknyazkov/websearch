@@ -10,7 +10,7 @@ decisions ride on the Client kwargs.
 
 from urllib.parse import urlparse
 
-import httpx
+import httpx2 as httpx
 
 
 def new_client(socks_proxy: str) -> httpx.Client:
@@ -18,14 +18,24 @@ def new_client(socks_proxy: str) -> httpx.Client:
 
     Single constructor spec (inventory owner row, conflicts C-2/C-3):
     ``httpx.Client(proxy=<socks value or None>, trust_env=False,
-    timeout=None, follow_redirects=True)``.
+    timeout=Timeout(60, connect=10), follow_redirects=True)``.
 
     - ``trust_env=False``: the proxy comes only from the explicit argument
       (main.py reads SOCKS_PROXY by hand) — never HTTP_PROXY / HTTPS_PROXY /
       ALL_PROXY (§1: one variable, one constructor).
-    - ``timeout=None``: Go's http.Client carries no Timeout anywhere
-      (client.go:12-15); httpx defaults to a 5 s deadline Go never attaches
-      (conflict C-2).
+    - ``timeout=Timeout(60, connect=10)``: supersedes the port's Go-parity
+      ``timeout=None`` (client.go:12-15 attached no Timeout; conflict C-2
+      existed only to avoid httpx's 5 s default). 2026-10-30: a real egress
+      outage — search endpoint unreachable through a bad proxy — ran as a
+      SILENT INFINITE hang precisely because no deadline existed; an MCP
+      server must fail loud and fast instead. 60 s bounds the slowest legit
+      cloud-API response; 10 s connect catches blackholed peers (SYN drops)
+      an order of magnitude sooner than any full-request deadline could.
+      The deadline only bites because the port rides httpx2 (2026-10-30):
+      httpx 0.28.1's SOCKS transport applies NO deadline during the socksio
+      handshake — probed with a silent socks5 peer, a request carrying an
+      explicit Timeout(8, connect=3) hung past 45 s — while httpx2 2.16.0
+      raised ReadTimeout at 8.1 s in the same probe (see pyproject's pin).
     - ``follow_redirects=True``: Go's client follows up to 10 redirects;
       httpx defaults to False, which would surface 3xx-with-Location as a
       non-2xx error (conflict C-3).
@@ -41,10 +51,10 @@ def new_client(socks_proxy: str) -> httpx.Client:
     port's old NIL-SWALLOW degrade legs, which mirrored Go's url.Parse error
     swallow on a scheme-dispatching HTTPS_PROXY value this code no longer
     reads. The same loud stance covers every other construction failure:
-    without the ``socksio`` package (the ``httpx[socks]`` extra, pinned in
-    pyproject) httpx raises ImportError here, and a value that parses but
-    httpx rejects (e.g. a control char) raises ValueError/InvalidURL here —
-    none are caught.
+    without the ``socksio`` package (the ``httpx2[socks]`` extra, pinned
+    in pyproject) httpx raises ImportError here, and a value that parses
+    but httpx rejects (e.g. a control char) raises ValueError/InvalidURL
+    here — none are caught.
     """
     if socks_proxy != "":
         # The empty-string check short-circuits to a proxy-less transport
@@ -71,7 +81,7 @@ def new_client(socks_proxy: str) -> httpx.Client:
     return httpx.Client(
         proxy=socks_proxy or None,
         trust_env=False,
-        timeout=None,
+        timeout=httpx.Timeout(60.0, connect=10.0),
         follow_redirects=True,
         max_redirects=9,
     )
