@@ -50,12 +50,19 @@ from mcp.types import (
     Tool,
 )
 
+from websearch.services.cache import TTLCache, search_cache_key
 from websearch.services.websearch import service as websearch_service
 from websearch.tools.websearch.input import INPUT_SCHEMA, Input
 from websearch.tools.websearch.output import Output, SearchHit
 from websearch.tools.websearch.prompt import NAME, description
 
 AGENT_NAME = "Agent"
+
+# POST-PORT (2026-10-30): process-wide response cache for this tool — one
+# stdio server process serves one client session, so every agent's call
+# rides the same entries; a restart (/reload-plugins) resets it. Keys fold
+# case/whitespace and pin the effective limit (search_cache_key).
+_CACHE: TTLCache[Output] = TTLCache()
 
 # Hand-written replacement for Go's ``jsonschema.For[Output]`` reflection
 # generation (row 96, WIRE-SCHEMA). Byte-shaped to the captured s01
@@ -94,9 +101,15 @@ OUTPUT_SCHEMA: dict[str, object] = {
                 "additionalProperties": False,
             },
             "description": "Array of search hits",
-        }
+        },
+        # POST-PORT EXTENSION (2026-10-30): beyond the s01 capture — the
+        # response-cache flag (services/cache), reported on every result.
+        "cached": {
+            "type": "boolean",
+            "description": "True when the response was served from the in-memory cache",
+        },
     },
-    "required": ["results"],
+    "required": ["results", "cached"],
     "additionalProperties": False,
 }
 
@@ -264,8 +277,13 @@ def output_schema() -> dict[str, object]:
 def handler(
     input: Input,  # noqa: A002
     web_search_service: websearch_service.WebSearchService,
+    cache: TTLCache[Output] | None = None,
 ) -> Output:
-    """Go ``handler`` (websearch.go:43-66), rows 92/94/95.
+    """Go ``handler`` (websearch.go:43-66), rows 92/94/95 — plus the
+    POST-PORT response cache (2026-10-30, no Go twin): an identical
+    (query, limit) request — modulo case/whitespace folding — is served
+    from the process-wide cache without an upstream call, and the output
+    carries ``cached`` telling the caller which path served it.
 
     ctx is dropped per section 2 (row 92: never observed; the SDK owns
     request-context cancellation); ``req`` had no counterpart either — the
@@ -275,12 +293,23 @@ def handler(
     """
     # SAFETY: `input` is the Go-verbatim parameter name (section 4) — a
     # local binding only, never a use of the builtin.
+    if cache is None:
+        cache = _CACHE
+
     # FF-2b (executable spec, migration/judge/fixedgo.py:43-49; conflict
     # C-4): 50 is the default; a request limit > 0 wins. 0 OR negative ->
     # 50, so max_results is never 0 or negative from the tool layer.
     limit = 50
     if input.limit > 0:
         limit = input.limit
+
+    cache_key = search_cache_key(input.query, limit)
+    cached_output = cache.get(cache_key)
+    if cached_output is not None:
+        # Private deep copy (TTLCache.get contract) — flipping the flag
+        # here cannot leak into the store.
+        cached_output.cached = True
+        return cached_output
 
     # Row 94 (NIL-ZERO): only query and limit are set — country/language
     # are never settable through the public surface and ride the Input
@@ -296,8 +325,10 @@ def handler(
     # Go: make([]SearchHit, 0, len(...)) + append — the results value is a
     # list, never None, even when empty (row 95; judge s17 pins [] over
     # null on the wire). Service results are never None (service rows
-    # 67/80/81), so the comprehension needs no guard.
-    return Output(
+    # 67/80/81), so the comprehension needs no guard. Empty answers cache
+    # like any other: a negative answer must not re-hit the upstream quota
+    # on every repeat.
+    output = Output(
         results=[
             SearchHit(
                 url=result.url,
@@ -307,6 +338,8 @@ def handler(
             for result in web_search_output.results
         ]
     )
+    cache.put(cache_key, output)
+    return output
 
 
 def get_month_year() -> str:
@@ -371,11 +404,13 @@ def _decode_input(arguments: dict[str, Any] | None) -> Input:
 def _output_wire(output: Output) -> dict[str, Any]:
     """Explicit wire dict for ``Output`` (section 2 struct-JSON-tags row).
 
-    The value is ALWAYS ``{"results": [...]}`` with a LIST — never None —
-    even when empty (row 95; judge s17). Hit keys in Go declaration order
-    (output.go URL, Title, Content), FF-1 fixing the Title wire key to
-    ``title`` (the Go json:"query" tag is the defect fixed forward; the
-    json.dumps text itself is non-spec). No dataclass asdict, no pydantic.
+    The value is ALWAYS ``{"results": [...], "cached": bool}`` with a LIST —
+    never None — even when empty (row 95; judge s17). Hit keys in Go
+    declaration order (output.go URL, Title, Content), FF-1 fixing the Title
+    wire key to ``title`` (the Go json:"query" tag is the defect fixed
+    forward; the json.dumps text itself is non-spec). POST-PORT EXTENSION
+    (2026-10-30): the ``cached`` flag rides last, beyond the Go shape. No
+    dataclass asdict, no pydantic.
     """
     return {
         "results": [
@@ -386,6 +421,7 @@ def _output_wire(output: Output) -> dict[str, Any]:
             }
             for hit in output.results
         ],
+        "cached": output.cached,
     }
 
 

@@ -46,6 +46,10 @@ class Output:
     url: str = ""
     title: str = ""
     content: Content = field(default_factory=Content)
+    # POST-PORT EXTENSION (2026-10-30), no Go twin: True when the response
+    # was served from the process-wide cache (services/cache) instead of
+    # the upstream fetch. Default False keeps the Go zero-value convention.
+    cached: bool = False
 
 
 # Hand-written replacement for jsonschema.For[Output](nil) reflection
@@ -79,8 +83,14 @@ OUTPUT_SCHEMA: dict[str, object] = {
             "required": ["length", "text"],
             "additionalProperties": False,
         },
+        # POST-PORT EXTENSION (2026-10-30): beyond the s01 capture — the
+        # response-cache flag (services/cache).
+        "cached": {
+            "type": "boolean",
+            "description": "True when the response was served from the in-memory cache",
+        },
     },
-    "required": ["content", "title", "url"],
+    "required": ["cached", "content", "title", "url"],
     "additionalProperties": False,
 }
 

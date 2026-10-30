@@ -28,6 +28,13 @@ the explicit English-month table stays a recorded contingency in the
 inventory TIME row, addable only if any setlocale ever appears — not a
 second mechanism here). Live behavior, not a defect; the judge normalizes
 it (harness MONTH_YEAR_RE) before the byte-exact compare.
+
+POST-PORT EXTENSION (2026-10-30): the Usage-notes block deliberately
+diverges from the Go template. The domain-filtering line promised a
+parameter that does not exist (input.py has only query/limit) — replaced
+with the honest parameter statement, plus the 15-minute cache line that
+became true when services/cache landed. The %s placeholder count and the
+argument order are unchanged.
 """
 
 NAME = "WebSearch"
@@ -52,7 +59,8 @@ CRITICAL REQUIREMENT - You MUST follow this:
     - [Source Title 2](https://example.com/2)
 
 Usage notes:
-  - Domain filtering is supported to include or block specific websites
+  - The only parameters are query and optional limit (max results, default 50) — domain filtering is not supported
+  - Repeated identical queries are served from a 15-minute in-memory cache
 
 IMPORTANT - Use the correct year in search queries:
   - The current month is %s. You MUST use this year when searching for recent information, documentation, or current events.

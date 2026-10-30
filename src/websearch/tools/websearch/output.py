@@ -10,7 +10,8 @@ pydantic):
 
 - The JSON serialization lives in the tool handler, tools/websearch/
   websearch.py (inventory row 95: {'url': ..., 'title': ..., 'content': ...}
-  built over a never-None results list, always {'results': [...]}, s17).
+  built over a never-None results list, always {'results': [...]}, s17;
+  POST-PORT 2026-10-30: the wire dict also carries the ``cached`` flag).
 - The outputSchema dict generated from the jsonschema tags documented below
   lives in tools/websearch/websearch.py too (inventory row 96 evidence:
   "outputSchema() at websearch.go:33-41 (NOT output.go — that file is the
@@ -53,6 +54,10 @@ class Output:
     """
 
     results: list[SearchHit]
+    # POST-PORT EXTENSION (2026-10-30), no Go twin: True when the response
+    # was served from the process-wide cache (services/cache) instead of
+    # the upstream API. Default False keeps the Go zero-value convention.
+    cached: bool = False
 
 
 @dataclass

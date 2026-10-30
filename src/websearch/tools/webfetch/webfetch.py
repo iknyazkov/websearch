@@ -42,10 +42,18 @@ from mcp.types import (
     Tool,
 )
 
+from websearch.services.cache import TTLCache, fetch_cache_key
 from websearch.services.webfetch.service import FetchOpts, WebFetchService
 from websearch.tools.webfetch.input import INPUT_SCHEMA, Input
 from websearch.tools.webfetch.output import OUTPUT_SCHEMA, Content, Output
 from websearch.tools.webfetch.prompt import DESCRIPTION, NAME
+
+# POST-PORT (2026-10-30): process-wide response cache for this tool — the
+# "self-cleaning 15-minute cache" the description has promised since the
+# port becomes real behavior here. One stdio server process serves one
+# client session, so every agent's call rides the same entries; a restart
+# (/reload-plugins) resets it.
+_CACHE: TTLCache[Output] = TTLCache()
 
 
 def register(server: Server[Any], web_fetch_service: WebFetchService) -> None:
@@ -179,8 +187,16 @@ def output_schema() -> dict[str, object]:
         return {}
 
 
-def handler(input: Input, web_fetch_service: WebFetchService) -> Output:  # noqa: A002
-    """Go ``handler`` (webfetch.go:38-56), rows 85/86.
+def handler(
+    input: Input,  # noqa: A002
+    web_fetch_service: WebFetchService,
+    cache: TTLCache[Output] | None = None,
+) -> Output:
+    """Go ``handler`` (webfetch.go:38-56), rows 85/86 — plus the POST-PORT
+    response cache (2026-10-30, no Go twin): an identical URL (modulo
+    scheme/host case and dropped fragment, fetch_cache_key contract) is
+    fetched from the upstream once per TTL window; repeats carry
+    ``cached=True`` and cost no upstream call.
 
     ctx is dropped per section 2 (row 86: never observed; the SDK owns
     request-context cancellation). The service call is a plain sync call —
@@ -195,9 +211,18 @@ def handler(input: Input, web_fetch_service: WebFetchService) -> Output:  # noqa
         # message (rulebook section 2 pinned strings, judge s05).
         raise ValueError("URL must be fully-formed and start with http:// or https://")
 
+    if cache is None:
+        cache = _CACHE
+    cache_key = fetch_cache_key(input.url)
+    cached_output = cache.get(cache_key)
+    if cached_output is not None:
+        # Private deep copy (TTLCache.get contract) — flag flip stays local.
+        cached_output.cached = True
+        return cached_output
+
     result = web_fetch_service.fetch(input.url, FetchOpts(format="markdown"))
 
-    return Output(
+    output = Output(
         url=result.url,
         title=result.title,
         content=Content(
@@ -205,6 +230,8 @@ def handler(input: Input, web_fetch_service: WebFetchService) -> Output:  # noqa
             length=result.content.length,
         ),
     )
+    cache.put(cache_key, output)
+    return output
 
 
 def _decode_input(arguments: dict[str, Any] | None) -> Input:
@@ -240,7 +267,8 @@ def _output_wire(output: Output) -> dict[str, Any]:
     Key order mirrors Go declaration order (output.go:9-11 and :3-6) — the
     same order go-sdk's json.Marshal emits for the serialized-JSON TextContent
     block. No dataclass asdict, no pydantic; FF-1 does not touch WebFetch
-    (these tags are already url/title/content).
+    (these tags are already url/title/content). POST-PORT EXTENSION
+    (2026-10-30): the ``cached`` flag rides last, beyond the Go shape.
     """
     return {
         "url": output.url,
@@ -249,6 +277,7 @@ def _output_wire(output: Output) -> dict[str, Any]:
             "text": output.content.text,
             "length": output.content.length,
         },
+        "cached": output.cached,
     }
 
 
