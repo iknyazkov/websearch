@@ -5,9 +5,10 @@ requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0",
     # [socks] = the socksio extra: httpx raises ImportError at Client
-    # construction for socks5:// proxy values without it (probed 0.28.1).
-    # The HTTPS_PROXY value carries the scheme, so SOCKS5 support is a
-    # dependency, not a code path (network/client.py needs no change).
+    # construction for socks5:// values without it (probed 0.28.1).
+    # SOCKS_PROXY's scheme set is socks5/socks5h only (enforced in
+    # network/client.py), so socksio backs every configured proxy — a
+    # dependency, not an optional code path.
     "httpx[socks]>=0.28",
     "beautifulsoup4>=4.12",
 ]

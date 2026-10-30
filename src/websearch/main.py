@@ -55,7 +55,7 @@ SERVER_NAME = "websearch"
 
 def main() -> None:
     """Go ``main`` (main.go:24-38) — row 98's exact wiring ORDER."""
-    client = network.new_client(os.environ.get("HTTPS_PROXY", ""))
+    client = network.new_client(os.environ.get("SOCKS_PROXY", ""))
 
     # Go: implementation := &mcp.Implementation{Name: serverName, Version:
     # "v1.0.0"}; server := mcp.NewServer(implementation, nil) (main.go:26-30).

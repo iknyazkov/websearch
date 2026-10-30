@@ -251,7 +251,7 @@ def new(cfg: Config) -> websearch_service.WebSearchService:
         # fallback is production-dead (main.go:45 always passes the shared
         # client) but reachable from bare-Config unit tests; kept for
         # structure, exactly like Go.
-        cfg.http_client = network_client.new_client(os.environ.get("HTTPS_PROXY", ""))
+        cfg.http_client = network_client.new_client(os.environ.get("SOCKS_PROXY", ""))
     return CloudWebSearchService(cfg=cfg)
 
 

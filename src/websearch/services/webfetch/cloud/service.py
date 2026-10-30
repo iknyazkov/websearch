@@ -253,7 +253,7 @@ def new(cfg: Config) -> WebFetchService:
     # trust_env=True violates §1). Dead in the wired path (main.py always
     # passes the shared client) — mirrored anyway.
     if cfg.http_client is None:
-        cfg.http_client = new_client(os.environ.get("HTTPS_PROXY", ""))
+        cfg.http_client = new_client(os.environ.get("SOCKS_PROXY", ""))
     # Closed post-parity 2026-10-28 (document-and-close; rows 11/12 spell
     # the in-place form): Go took Config BY VALUE (service.go:122) so the fallback
     # mutated only the local copy; the port mutates the caller's dataclass.
