@@ -29,6 +29,18 @@ def new_client(proxy: str) -> httpx.Client:
     - ``follow_redirects=True``: Go's client follows up to 10 redirects;
       httpx defaults to False, which would surface 3xx-with-Location as a
       non-2xx error (conflict C-3).
+
+    The proxy VALUE carries the scheme, so ``http://``, ``socks5://`` (local
+    DNS) and ``socks5h://`` (DNS through the proxy) all ride this one
+    constructor unchanged — Go's http.ProxyURL accepted the same scheme set
+    (net/http natively dials socks5 proxies), so this is parity, not a new
+    code path. SOCKS needs the ``socksio`` package (the ``httpx[socks]``
+    extra, pinned in pyproject): without it httpx raises ImportError HERE,
+    at construction — deliberately NOT caught by the ValueError/InvalidURL
+    degrade guard below, whose contract covers garbage URLs (fall to direct,
+    Go-parity NIL-SWALLOW), not missing dependencies: an operator who pinned
+    egress to a proxy gets a loud startup crash, never a silent direct
+    fall-back.
     """
     if proxy != "":
         # Go makeTransport, client.go:24-35. The empty-string check short-circuits
